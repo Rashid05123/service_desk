@@ -7,7 +7,10 @@ enum ScreenSize { compact, medium, expanded }
 const double kCompactWidth = 600;
 
 /// Граница, на которой боковая полоса навигации раскрывается с подписями.
-const double kExpandedWidth = 1200;
+/// Раскрытая полоса занимает 256 пикселей, поэтому раскрывается она только
+/// на действительно широких экранах: иначе таблице заявок не хватает
+/// ширины и колонка действий уходит за край окна.
+const double kExpandedWidth = 1800;
 
 ScreenSize screenSizeOf(BuildContext context) {
   final width = MediaQuery.sizeOf(context).width;

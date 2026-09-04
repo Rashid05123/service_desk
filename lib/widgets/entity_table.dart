@@ -103,9 +103,21 @@ class EntityTable<T> extends StatelessWidget {
             for (final column in columns) DataCell(column.build(context, item)),
             if (actions != null)
               DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions!(context, item),
+                // Кнопки действий уплотнены: три обычных занимают почти
+                // 150 пикселей, из-за чего таблица не помещается в окно
+                // шириной около 1500 и последняя кнопка уезжает.
+                IconButtonTheme(
+                  data: IconButtonThemeData(
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(32, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: actions!(context, item),
+                  ),
                 ),
               ),
           ],
@@ -135,8 +147,8 @@ class EntityTable<T> extends StatelessWidget {
               headingRowColor: WidgetStatePropertyAll(
                 theme.colorScheme.surfaceContainerHigh,
               ),
-              columnSpacing: 14,
-              horizontalMargin: 16,
+              columnSpacing: 8,
+              horizontalMargin: 10,
               headingTextStyle: theme.textTheme.labelLarge,
             ),
           ),

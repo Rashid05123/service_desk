@@ -317,7 +317,7 @@ class _TicketListScreenState extends State<TicketListScreen> {
           label: 'Тема',
           sortField: 'subject',
           build: (context, t) => ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 230),
+            constraints: const BoxConstraints(maxWidth: 200),
             child: Text(t.subject, overflow: TextOverflow.ellipsis),
           ),
         ),

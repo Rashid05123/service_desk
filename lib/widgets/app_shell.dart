@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/breakpoints.dart';
 
 /// Каркас с адаптивной навигацией: до 600 нижняя панель, шире боковая
-/// полоса, с 1200 она раскрывается вместе с подписями.
+/// полоса, с 1800 она раскрывается вместе с подписями.
 class AppShell extends StatelessWidget {
   final Widget child;
 
