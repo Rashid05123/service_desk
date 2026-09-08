@@ -71,13 +71,16 @@ class PaginationBar extends StatelessWidget {
     final pager = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Tooltip(
-          message: 'Первая страница',
-          child: IconButton(
-            icon: const Icon(Icons.first_page),
-            onPressed: hasPrevious ? () => onPageChanged(1) : null,
+        // На узком окне пять кнопок в строку не помещаются, поэтому
+        // переходы к первой и последней странице там убраны.
+        if (!compact)
+          Tooltip(
+            message: 'Первая страница',
+            child: IconButton(
+              icon: const Icon(Icons.first_page),
+              onPressed: hasPrevious ? () => onPageChanged(1) : null,
+            ),
           ),
-        ),
         Tooltip(
           message: 'Предыдущая страница',
           child: IconButton(
@@ -99,13 +102,14 @@ class PaginationBar extends StatelessWidget {
             onPressed: hasNext ? () => onPageChanged(page + 1) : null,
           ),
         ),
-        Tooltip(
-          message: 'Последняя страница',
-          child: IconButton(
-            icon: const Icon(Icons.last_page),
-            onPressed: hasNext ? () => onPageChanged(totalPages) : null,
+        if (!compact)
+          Tooltip(
+            message: 'Последняя страница',
+            child: IconButton(
+              icon: const Icon(Icons.last_page),
+              onPressed: hasNext ? () => onPageChanged(totalPages) : null,
+            ),
           ),
-        ),
       ],
     );
 

@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../core/formatting.dart';
 import '../models/employee.dart';
 import '../models/ticket_query.dart';
-import '../state/detail_notifier.dart';
-import '../state/load_status.dart';
-import '../widgets/status_views.dart';
+import '../state/reference_data_notifier.dart';
+import '../widgets/detail_page.dart';
 
 /// Карточка сотрудника поддержки.
 class EmployeeDetailScreen extends StatelessWidget {
@@ -15,128 +13,107 @@ class EmployeeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = context.watch<DetailNotifier<Employee>>();
-    final listParams = GoRouterState.of(context).uri.queryParameters;
+    final reference = context.watch<ReferenceDataNotifier>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(notifier.item?.lastName ?? 'Сотрудник'),
-        leading: Tooltip(
-          message: 'К списку сотрудников',
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go(
-              Uri(
-                path: '/employees',
-                queryParameters: listParams.isEmpty ? null : listParams,
-              ).toString(),
-            ),
-          ),
-        ),
-      ),
-      body: switch (notifier.status) {
-        LoadStatus.idle || LoadStatus.loading => const LoadingView(),
-        LoadStatus.error => ErrorView(
-          message: notifier.error ?? 'Неизвестная ошибка',
-          onRetry: notifier.reload,
-        ),
-        LoadStatus.success =>
-          notifier.item == null
-              ? const EmptyView(
-                  title: 'Сотрудник не найден',
-                  description: 'Записи с таким номером нет в справочнике.',
-                )
-              : _details(context, notifier.item!),
-      },
+    return DetailPage<Employee>(
+      listPath: '/employees',
+      idOf: (e) => e.id,
+      titleOf: (e) => e?.lastName ?? 'Сотрудник',
+      notFoundTitle: 'Сотрудник не найден',
+      notFoundDescription: 'Записи с таким номером нет в справочнике.',
+      content: (context, employee) => _content(context, employee, reference),
     );
   }
 
-  Widget _details(BuildContext context, Employee employee) {
+  List<Widget> _content(
+    BuildContext context,
+    Employee employee,
+    ReferenceDataNotifier reference,
+  ) {
     final theme = Theme.of(context);
+    final department = reference.departmentById(employee.departmentId);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (employee.isDeleted)
-                Card(
-                  color: theme.colorScheme.errorContainer,
-                  child: ListTile(
-                    leading: const Icon(Icons.delete_outline),
-                    title: const Text('Запись удалена логически'),
-                    subtitle: Text(
-                      'Отметка удаления: '
-                      '${formatDateTime(employee.deletedAt!)}',
-                    ),
-                  ),
-                ),
-              Text(employee.fullName, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 4),
-              Text(
-                employee.position,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Column(
-                  children: [
-                    _row(context, 'Отдел', employee.department),
-                    _row(context, 'Линия поддержки', '${employee.supportLine}'),
-                    _row(context, 'Электронная почта', employee.email),
-                    _row(context, 'Телефон', employee.phone),
-                    _row(
-                      context,
-                      'Статус',
-                      employee.isActive ? 'работает' : 'не работает',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Переход на список с уже подставленным фильтром.
-              FilledButton.tonalIcon(
-                onPressed: () => context.go(
-                  Uri(
-                    path: '/tickets',
-                    queryParameters: TicketQuery(assigneeId: employee.id)
-                        .toQueryParameters(),
-                  ).toString(),
-                ),
-                icon: const Icon(Icons.list_alt),
-                label: const Text('Показать заявки этого сотрудника'),
-              ),
-            ],
-          ),
+    return [
+      if (employee.isDeleted) DeletedBanner(deletedAt: employee.deletedAt!),
+      Text(employee.fullName, style: theme.textTheme.headlineSmall),
+      const SizedBox(height: 4),
+      Text(
+        employee.position,
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-    );
-  }
-
-  Widget _row(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 180,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+      const SizedBox(height: 16),
+      Card(
+        child: Column(
+          children: [
+            DetailRow('Линия поддержки', '${employee.supportLine}'),
+            DetailRow('Электронная почта', employee.email),
+            DetailRow('Телефон', employee.phone),
+            DetailRow(
+              'Статус',
+              employee.isActive ? 'работает' : 'не работает',
             ),
-          ),
-          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
-        ],
+          ],
+        ),
       ),
-    );
+      const SizedBox(height: 16),
+      // Многие к одному: отдел показан ссылкой на свою карточку.
+      Text('Отдел', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      Card(
+        child: department == null
+            ? const ListTile(
+                leading: Icon(Icons.domain_disabled_outlined),
+                title: Text('Отдел не найден'),
+              )
+            : ListTile(
+                leading: const Icon(Icons.domain_outlined),
+                title: Text(department.name),
+                subtitle: Text('${department.code} · ${department.location}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/departments/${department.id}'),
+              ),
+      ),
+      const SizedBox(height: 16),
+      // Многие ко многим: обслуживаемые категории.
+      Text('Обслуживаемые категории', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      if (employee.categoryIds.isEmpty)
+        Text(
+          'Компетенции не заданы: назначить сотрудника исполнителем '
+          'нельзя ни по одной категории.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        )
+      else
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final categoryId in employee.categoryIds)
+              ActionChip(
+                avatar: const Icon(Icons.category_outlined, size: 16),
+                label: Text(reference.categoryName(categoryId)),
+                onPressed: () => context.go('/categories/$categoryId'),
+              ),
+          ],
+        ),
+      const SizedBox(height: 20),
+      // Переход на список с уже подставленным фильтром.
+      FilledButton.tonalIcon(
+        onPressed: () => context.go(
+          Uri(
+            path: '/tickets',
+            queryParameters: TicketQuery(
+              assigneeId: employee.id,
+            ).toQueryParameters(),
+          ).toString(),
+        ),
+        icon: const Icon(Icons.list_alt),
+        label: const Text('Показать заявки этого сотрудника'),
+      ),
+    ];
   }
 }

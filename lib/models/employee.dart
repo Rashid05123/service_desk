@@ -1,26 +1,42 @@
-/// Сотрудник поддержки. Ticket.assigneeId ссылается на Employee.id.
-class Employee {
+import 'entity.dart';
+
+/// Сотрудник поддержки. Две связи наружу: многие к одному с отделом
+/// и многие ко многим с категориями — это компетенции, по которым
+/// сотрудника можно назначить исполнителем.
+class Employee implements Entity<Employee> {
+  @override
   final int id;
+
   final String fullName;
   final String position;
-  final String department;
+
+  /// Ссылка на отдел. Многие к одному.
+  final int departmentId;
+
   final String email;
   final String phone;
 
   /// Линия поддержки: 1 — приём обращений, 2 — специалисты, 3 — эксперты.
   final int supportLine;
 
+  /// Обслуживаемые категории заявок. Многие ко многим: категорию ведут
+  /// несколько сотрудников, сотрудник ведёт несколько категорий.
+  final List<int> categoryIds;
+
   final bool isActive;
+
+  @override
   final DateTime? deletedAt;
 
   const Employee({
     required this.id,
     required this.fullName,
     required this.position,
-    required this.department,
+    required this.departmentId,
     required this.email,
     required this.phone,
     required this.supportLine,
+    required this.categoryIds,
     required this.isActive,
     this.deletedAt,
   });
@@ -33,10 +49,11 @@ class Employee {
   Employee copyWith({
     String? fullName,
     String? position,
-    String? department,
+    int? departmentId,
     String? email,
     String? phone,
     int? supportLine,
+    List<int>? categoryIds,
     bool? isActive,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
@@ -45,12 +62,60 @@ class Employee {
       id: id,
       fullName: fullName ?? this.fullName,
       position: position ?? this.position,
-      department: department ?? this.department,
+      departmentId: departmentId ?? this.departmentId,
       email: email ?? this.email,
       phone: phone ?? this.phone,
       supportLine: supportLine ?? this.supportLine,
+      categoryIds: categoryIds ?? this.categoryIds,
       isActive: isActive ?? this.isActive,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
     );
   }
+
+  @override
+  Employee withId(int id) => Employee(
+    id: id,
+    fullName: fullName,
+    position: position,
+    departmentId: departmentId,
+    email: email,
+    phone: phone,
+    supportLine: supportLine,
+    categoryIds: categoryIds,
+    isActive: isActive,
+    deletedAt: deletedAt,
+  );
+
+  @override
+  Employee markDeleted(DateTime at) => copyWith(deletedAt: at);
+
+  @override
+  Employee restored() => copyWith(clearDeletedAt: true);
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'fullName': fullName,
+    'position': position,
+    'departmentId': departmentId,
+    'email': email,
+    'phone': phone,
+    'supportLine': supportLine,
+    'categoryIds': categoryIds,
+    'isActive': isActive,
+    'deletedAt': deletedAt?.toIso8601String(),
+  };
+
+  factory Employee.fromJson(Map<String, dynamic> json) => Employee(
+    id: Json.asInt(json['id']),
+    fullName: Json.asString(json['fullName']),
+    position: Json.asString(json['position']),
+    departmentId: Json.asInt(json['departmentId']),
+    email: Json.asString(json['email']),
+    phone: Json.asString(json['phone']),
+    supportLine: Json.asInt(json['supportLine'], 1),
+    categoryIds: Json.asIntList(json['categoryIds']),
+    isActive: Json.asBool(json['isActive'], true),
+    deletedAt: Json.asDateOrNull(json['deletedAt']),
+  );
 }

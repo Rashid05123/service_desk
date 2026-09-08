@@ -53,6 +53,14 @@ String pluralSelected(int count) =>
 String pluralEmployees(int count) =>
     _plural(count, 'сотрудник', 'сотрудника', 'сотрудников');
 
+String pluralDepartments(int count) => _plural(count, 'отдел', 'отдела', 'отделов');
+
+String pluralCategories(int count) =>
+    _plural(count, 'категория', 'категории', 'категорий');
+
+String pluralRequesters(int count) =>
+    _plural(count, 'заявитель', 'заявителя', 'заявителей');
+
 String _plural(int count, String one, String few, String many) {
   final mod100 = count % 100;
   if (mod100 >= 11 && mod100 <= 14) return many;

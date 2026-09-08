@@ -1,22 +1,36 @@
 import 'enums.dart';
+import 'list_query.dart';
 
 /// Условия отбора заявок: единственный аргумент метода find репозитория
 /// и одновременно параметры адресной строки.
-class TicketQuery {
+class TicketQuery implements ListQuery<TicketQuery> {
+  @override
   final String search;
+
   final int? categoryId;
   final TicketPriority? priority;
   final TicketStatus? status;
   final int? assigneeId;
+  final int? requesterId;
   final DateTime? createdFrom;
   final DateTime? createdTo;
+
+  @override
   final String sortField;
+
+  @override
   final bool sortAscending;
+
+  @override
   final int page;
+
+  @override
   final int size;
+
+  @override
   final bool includeDeleted;
 
-  static const List<int> availableSizes = [10, 25, 50];
+  static const List<int> availableSizes = kPageSizes;
 
   /// Поля, по которым разрешена сортировка. Всё прочее из адреса
   /// отбрасывается.
@@ -35,6 +49,7 @@ class TicketQuery {
     this.priority,
     this.status,
     this.assigneeId,
+    this.requesterId,
     this.createdFrom,
     this.createdTo,
     this.sortField = 'createdAt',
@@ -53,6 +68,7 @@ class TicketQuery {
     Object? priority = _unset,
     Object? status = _unset,
     Object? assigneeId = _unset,
+    Object? requesterId = _unset,
     Object? createdFrom = _unset,
     Object? createdTo = _unset,
     String? sortField,
@@ -69,6 +85,9 @@ class TicketQuery {
           : priority as TicketPriority?,
       status: status == _unset ? this.status : status as TicketStatus?,
       assigneeId: assigneeId == _unset ? this.assigneeId : assigneeId as int?,
+      requesterId: requesterId == _unset
+          ? this.requesterId
+          : requesterId as int?,
       createdFrom: createdFrom == _unset
           ? this.createdFrom
           : createdFrom as DateTime?,
@@ -83,23 +102,45 @@ class TicketQuery {
     );
   }
 
-  /// Сколько фильтров задано — для значка на кнопке «Фильтры».
+  @override
+  TicketQuery withSearch(String value) => copyWith(search: value);
+
+  @override
+  TicketQuery withPage(int value) => copyWith(page: value);
+
+  @override
+  TicketQuery withSize(int value) => copyWith(size: value);
+
+  @override
+  TicketQuery withSort(String field, bool ascending) =>
+      copyWith(sortField: field, sortAscending: ascending, page: page);
+
+  @override
+  TicketQuery withIncludeDeleted(bool value) => copyWith(includeDeleted: value);
+
+  @override
+  TicketQuery cleared() => const TicketQuery();
+
+  @override
   int get activeFilterCount {
     var count = 0;
     if (categoryId != null) count++;
     if (priority != null) count++;
     if (status != null) count++;
     if (assigneeId != null) count++;
+    if (requesterId != null) count++;
     if (createdFrom != null) count++;
     if (createdTo != null) count++;
     if (includeDeleted) count++;
     return count;
   }
 
+  @override
   bool get hasAnyCondition => search.trim().isNotEmpty || activeFilterCount > 0;
 
   /// Сборка параметров адреса. Значения по умолчанию не пишутся, чтобы
   /// адрес чистого списка выглядел как /tickets.
+  @override
   Map<String, String> toQueryParameters() {
     final params = <String, String>{};
     if (search.trim().isNotEmpty) params['search'] = search.trim();
@@ -107,6 +148,7 @@ class TicketQuery {
     if (priority != null) params['priority'] = priority!.code;
     if (status != null) params['status'] = status!.code;
     if (assigneeId != null) params['assigneeId'] = '$assigneeId';
+    if (requesterId != null) params['requesterId'] = '$requesterId';
     if (createdFrom != null) params['createdFrom'] = formatDate(createdFrom!);
     if (createdTo != null) params['createdTo'] = formatDate(createdTo!);
     if (sortField != 'createdAt' || sortAscending) {
@@ -132,6 +174,7 @@ class TicketQuery {
       priority: TicketPriority.fromCode(params['priority']),
       status: TicketStatus.fromCode(params['status']),
       assigneeId: int.tryParse(params['assigneeId'] ?? ''),
+      requesterId: int.tryParse(params['requesterId'] ?? ''),
       createdFrom: DateTime.tryParse(params['createdFrom'] ?? ''),
       createdTo: DateTime.tryParse(params['createdTo'] ?? ''),
       sortField: sortableFields.contains(field) ? field : 'createdAt',
@@ -157,6 +200,7 @@ class TicketQuery {
       other.priority == priority &&
       other.status == status &&
       other.assigneeId == assigneeId &&
+      other.requesterId == requesterId &&
       other.createdFrom == createdFrom &&
       other.createdTo == createdTo &&
       other.sortField == sortField &&
@@ -172,6 +216,7 @@ class TicketQuery {
     priority,
     status,
     assigneeId,
+    requesterId,
     createdFrom,
     createdTo,
     sortField,

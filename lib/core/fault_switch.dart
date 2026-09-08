@@ -1,6 +1,8 @@
+import 'exceptions.dart';
+
 /// Учебный переключатель отказа хранилища: пока включён, любой запрос
 /// к репозиторию завершается исключением. Нужен, чтобы показать состояние
-/// ошибки на данных в памяти.
+/// ошибки на локальных данных.
 class FaultSwitch {
   bool _enabled = false;
 
@@ -14,14 +16,4 @@ class FaultSwitch {
       throw const StorageException('Хранилище недоступно');
     }
   }
-}
-
-/// Ошибка уровня хранилища.
-class StorageException implements Exception {
-  final String message;
-
-  const StorageException(this.message);
-
-  @override
-  String toString() => message;
 }

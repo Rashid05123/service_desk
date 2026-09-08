@@ -1,29 +1,48 @@
+import 'list_query.dart';
+
 /// Условия отбора сотрудников. Устроен так же, как TicketQuery.
-class EmployeeQuery {
-  /// Поиск по фамилии и отделу — поля, отличные от идентификатора.
+class EmployeeQuery implements ListQuery<EmployeeQuery> {
+  /// Поиск по фамилии и должности — поля, отличные от идентификатора.
+  @override
   final String search;
 
-  final String? department;
+  /// Фильтр по отделу. Многие к одному: хранится ссылка, а не название.
+  final int? departmentId;
+
+  /// Фильтр по компетенции — сторона связи многие ко многим.
+  final int? categoryId;
+
   final int? supportLine;
   final bool? onlyActive;
+
+  @override
   final String sortField;
+
+  @override
   final bool sortAscending;
+
+  @override
   final int page;
+
+  @override
   final int size;
+
+  @override
   final bool includeDeleted;
 
-  static const List<int> availableSizes = [10, 25, 50];
+  static const List<int> availableSizes = kPageSizes;
 
   static const List<String> sortableFields = [
     'fullName',
     'position',
-    'department',
     'supportLine',
+    'email',
   ];
 
   const EmployeeQuery({
     this.search = '',
-    this.department,
+    this.departmentId,
+    this.categoryId,
     this.supportLine,
     this.onlyActive,
     this.sortField = 'fullName',
@@ -37,7 +56,8 @@ class EmployeeQuery {
 
   EmployeeQuery copyWith({
     String? search,
-    Object? department = _unset,
+    Object? departmentId = _unset,
+    Object? categoryId = _unset,
     Object? supportLine = _unset,
     Object? onlyActive = _unset,
     String? sortField,
@@ -48,9 +68,10 @@ class EmployeeQuery {
   }) {
     return EmployeeQuery(
       search: search ?? this.search,
-      department: department == _unset
-          ? this.department
-          : department as String?,
+      departmentId: departmentId == _unset
+          ? this.departmentId
+          : departmentId as int?,
+      categoryId: categoryId == _unset ? this.categoryId : categoryId as int?,
       supportLine: supportLine == _unset
           ? this.supportLine
           : supportLine as int?,
@@ -63,21 +84,46 @@ class EmployeeQuery {
     );
   }
 
+  @override
+  EmployeeQuery withSearch(String value) => copyWith(search: value);
+
+  @override
+  EmployeeQuery withPage(int value) => copyWith(page: value);
+
+  @override
+  EmployeeQuery withSize(int value) => copyWith(size: value);
+
+  @override
+  EmployeeQuery withSort(String field, bool ascending) =>
+      copyWith(sortField: field, sortAscending: ascending, page: page);
+
+  @override
+  EmployeeQuery withIncludeDeleted(bool value) =>
+      copyWith(includeDeleted: value);
+
+  @override
+  EmployeeQuery cleared() => const EmployeeQuery();
+
+  @override
   int get activeFilterCount {
     var count = 0;
-    if (department != null) count++;
+    if (departmentId != null) count++;
+    if (categoryId != null) count++;
     if (supportLine != null) count++;
     if (onlyActive != null) count++;
     if (includeDeleted) count++;
     return count;
   }
 
+  @override
   bool get hasAnyCondition => search.trim().isNotEmpty || activeFilterCount > 0;
 
+  @override
   Map<String, String> toQueryParameters() {
     final params = <String, String>{};
     if (search.trim().isNotEmpty) params['search'] = search.trim();
-    if (department != null) params['department'] = department!;
+    if (departmentId != null) params['departmentId'] = '$departmentId';
+    if (categoryId != null) params['categoryId'] = '$categoryId';
     if (supportLine != null) params['supportLine'] = '$supportLine';
     if (onlyActive != null) params['active'] = onlyActive! ? 'true' : 'false';
     if (sortField != 'fullName' || !sortAscending) {
@@ -95,13 +141,11 @@ class EmployeeQuery {
     final size = int.tryParse(params['size'] ?? '') ?? 10;
     final page = int.tryParse(params['page'] ?? '') ?? 1;
     final active = params['active'];
-    final department = params['department'];
 
     return EmployeeQuery(
       search: params['search'] ?? '',
-      department: (department == null || department.isEmpty)
-          ? null
-          : department,
+      departmentId: int.tryParse(params['departmentId'] ?? ''),
+      categoryId: int.tryParse(params['categoryId'] ?? ''),
       supportLine: int.tryParse(params['supportLine'] ?? ''),
       onlyActive: active == null ? null : active == 'true',
       sortField: sortableFields.contains(field) ? field : 'fullName',
@@ -116,7 +160,8 @@ class EmployeeQuery {
   bool operator ==(Object other) =>
       other is EmployeeQuery &&
       other.search == search &&
-      other.department == department &&
+      other.departmentId == departmentId &&
+      other.categoryId == categoryId &&
       other.supportLine == supportLine &&
       other.onlyActive == onlyActive &&
       other.sortField == sortField &&
@@ -128,7 +173,8 @@ class EmployeeQuery {
   @override
   int get hashCode => Object.hash(
     search,
-    department,
+    departmentId,
+    categoryId,
     supportLine,
     onlyActive,
     sortField,

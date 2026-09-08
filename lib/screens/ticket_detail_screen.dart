@@ -4,10 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../core/formatting.dart';
 import '../models/ticket.dart';
-import '../state/detail_notifier.dart';
-import '../state/load_status.dart';
 import '../state/reference_data_notifier.dart';
-import '../widgets/status_views.dart';
+import '../widgets/detail_page.dart';
+import 'ticket_list_screen.dart';
 
 /// Карточка заявки. Идентификатор берётся из адреса, поэтому /tickets/12
 /// открывается напрямую; условия отбора списка тоже остаются в адресе.
@@ -16,150 +15,136 @@ class TicketDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = context.watch<DetailNotifier<Ticket>>();
     final reference = context.watch<ReferenceDataNotifier>();
-    final listParams = GoRouterState.of(context).uri.queryParameters;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(notifier.item?.number ?? 'Заявка'),
-        leading: Tooltip(
-          message: 'К списку заявок',
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go(
-              Uri(
-                path: '/tickets',
-                queryParameters: listParams.isEmpty ? null : listParams,
-              ).toString(),
-            ),
-          ),
-        ),
-      ),
-      body: switch (notifier.status) {
-        LoadStatus.idle || LoadStatus.loading => const LoadingView(),
-        LoadStatus.error => ErrorView(
-          message: notifier.error ?? 'Неизвестная ошибка',
-          onRetry: notifier.reload,
-        ),
-        LoadStatus.success =>
-          notifier.item == null
-              ? const EmptyView(
-                  title: 'Заявка не найдена',
-                  description:
-                      'Записи с таким номером нет в журнале. Возможно, она '
-                      'была удалена безвозвратно.',
-                )
-              : _details(context, notifier.item!, reference),
-      },
+    return DetailPage<Ticket>(
+      listPath: '/tickets',
+      idOf: (t) => t.id,
+      titleOf: (t) => t?.number ?? 'Заявка',
+      notFoundTitle: 'Заявка не найдена',
+      notFoundDescription:
+          'Записи с таким номером нет в журнале. Возможно, она была '
+          'удалена безвозвратно.',
+      content: (context, ticket) => _content(context, ticket, reference),
     );
   }
 
-  Widget _details(
+  List<Widget> _content(
     BuildContext context,
     Ticket ticket,
     ReferenceDataNotifier reference,
   ) {
     final theme = Theme.of(context);
     final assignee = reference.employeeById(ticket.assigneeId);
+    final requester = reference.requesterById(ticket.requesterId);
+    final coworkers = ticket.coworkerIds
+        .map(reference.employeeById)
+        .nonNulls
+        .toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        // Содержимое ограничено по ширине и не растягивается на монитор.
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (ticket.isDeleted)
-                Card(
-                  color: theme.colorScheme.errorContainer,
-                  child: ListTile(
-                    leading: const Icon(Icons.delete_outline),
-                    title: const Text('Заявка удалена логически'),
-                    subtitle: Text(
-                      'Отметка удаления: ${formatDateTime(ticket.deletedAt!)}',
-                    ),
-                  ),
-                ),
-              Text(ticket.subject, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(label: Text('Приоритет: ${ticket.priority.label}')),
-                  Chip(label: Text('Статус: ${ticket.status.label}')),
-                  Chip(
-                    label: Text(
-                      'Категория: ${reference.categoryName(ticket.categoryId)}',
-                    ),
-                  ),
-                  if (ticket.isOverdue)
-                    Chip(
-                      avatar: Icon(
-                        Icons.warning_amber,
-                        size: 16,
-                        color: theme.colorScheme.error,
-                      ),
-                      label: const Text('Просрочена'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Text('Описание', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(ticket.description, style: theme.textTheme.bodyLarge),
-              const SizedBox(height: 20),
-              Card(
-                child: Column(
-                  children: [
-                    _row('Номер', ticket.number),
-                    _row('Заявитель', ticket.requesterName),
-                    _row('Подразделение', ticket.requesterDepartment),
-                    _row(
-                      'Исполнитель',
-                      assignee == null
-                          ? 'не назначен'
-                          : '${assignee.fullName} · ${assignee.position}',
-                    ),
-                    _row('Создана', formatDateTime(ticket.createdAt)),
-                    _row('Срок решения', formatDateTime(ticket.dueAt)),
-                  ],
-                ),
-              ),
-            ],
+    return [
+      if (ticket.isDeleted)
+        DeletedBanner(
+          deletedAt: ticket.deletedAt!,
+          title: 'Заявка удалена логически',
+        ),
+      Text(ticket.subject, style: theme.textTheme.headlineSmall),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          priorityChip(context, ticket.priority),
+          statusChip(context, ticket.status),
+          Chip(
+            label: Text(
+              'Категория: ${reference.categoryName(ticket.categoryId)}',
+            ),
           ),
+          if (ticket.isOverdue)
+            Chip(
+              avatar: Icon(
+                Icons.warning_amber,
+                size: 16,
+                color: theme.colorScheme.error,
+              ),
+              label: const Text('Просрочена'),
+            ),
+        ],
+      ),
+      const SizedBox(height: 20),
+      Text('Описание', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(ticket.description, style: theme.textTheme.bodyLarge),
+      const SizedBox(height: 20),
+      Card(
+        child: Column(
+          children: [
+            DetailRow('Номер', ticket.number),
+            DetailRow(
+              'Исполнитель',
+              assignee == null
+                  ? 'не назначен'
+                  : '${assignee.fullName} · ${assignee.position}',
+            ),
+            DetailRow('Создана', formatDateTime(ticket.createdAt)),
+            DetailRow(
+              'Срок решения',
+              formatDateTime(ticket.dueAt),
+              valueColor: ticket.isOverdue ? theme.colorScheme.error : null,
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _row(String label, String value) {
-    return Builder(
-      builder: (context) {
-        final theme = Theme.of(context);
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 160,
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              // Без Expanded длинное значение переполнит Row.
-              Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
-            ],
+      const SizedBox(height: 16),
+      // Связь многие ко многим: соисполнители показываются списком меток
+      // со ссылками на карточки сотрудников.
+      Text('Соисполнители', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      if (coworkers.isEmpty)
+        Text(
+          'Дополнительные исполнители не назначены.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-        );
-      },
-    );
+        )
+      else
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final employee in coworkers)
+              ActionChip(
+                avatar: const Icon(Icons.badge_outlined, size: 16),
+                label: Text(employee.fullName),
+                onPressed: () => context.go('/employees/${employee.id}'),
+              ),
+          ],
+        ),
+      const SizedBox(height: 20),
+      // Связь многие к одному: заявитель показан карточкой со ссылкой.
+      Text('Заявитель', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      Card(
+        child: requester == null
+            ? const ListTile(
+                leading: Icon(Icons.person_off_outlined),
+                title: Text('Заявитель не найден'),
+                subtitle: Text('Запись могла быть стёрта безвозвратно.'),
+              )
+            : ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: Text(requester.fullName),
+                subtitle: Text(
+                  '${requester.position} · '
+                  '${reference.departmentName(requester.departmentId)}\n'
+                  'Учётная запись: ${requester.account.login}',
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/requesters/${requester.id}'),
+              ),
+      ),
+    ];
   }
 }

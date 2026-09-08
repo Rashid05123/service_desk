@@ -17,6 +17,9 @@ class AppShell extends StatelessWidget {
       path: '/tickets',
     ),
     (icon: Icons.badge_outlined, label: 'Сотрудники', path: '/employees'),
+    (icon: Icons.person_outline, label: 'Заявители', path: '/requesters'),
+    (icon: Icons.domain_outlined, label: 'Отделы', path: '/departments'),
+    (icon: Icons.category_outlined, label: 'Категории', path: '/categories'),
   ];
 
   /// Раздел определяется по адресу, а не по внутреннему состоянию.
