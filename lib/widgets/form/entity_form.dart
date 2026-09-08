@@ -171,10 +171,10 @@ class EntityFormState extends State<EntityForm> {
 
     return Form(
       key: _formKey,
-      // Поле начинает проверяться после того, как его тронули: иначе
-      // исправленная ошибка висит под полем до следующего нажатия
-      // на кнопку сохранения.
-      autovalidateMode: AutovalidateMode.onUserInteraction,
+      // autovalidateMode задан каждому полю отдельно, а не форме целиком:
+      // на форме этот режим проверяет разом все поля при изменении
+      // любого из них, и правка одного поля подсветила бы ошибками всю
+      // форму, включая ещё не заполненные поля.
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Center(
@@ -239,6 +239,9 @@ class EntityFormState extends State<EntityForm> {
 
   Widget _text(TextFieldSpec field) {
     return TextFormField(
+      // Поле проверяется после того, как его тронули: исправленная
+      // ошибка исчезает сразу, а не после следующего нажатия кнопки.
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       // controller и initialValue вместе задавать нельзя: TextFormField
       // бросает исключение при построении.
       controller: _controllers[field.name],
@@ -259,6 +262,7 @@ class EntityFormState extends State<EntityForm> {
 
   Widget _number(NumberFieldSpec field) {
     return TextFormField(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: _controllers[field.name],
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -279,6 +283,7 @@ class EntityFormState extends State<EntityForm> {
     final value = _values[field.name] as int?;
 
     return DropdownButtonFormField<int>(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       // initialValue, а не value: в текущей версии Flutter параметр
       // переименован, а didUpdateWidget подхватывает новое значение —
       // это и позволяет каскаду сбрасывать поле.
@@ -312,6 +317,7 @@ class EntityFormState extends State<EntityForm> {
     final selected = (_values[field.name] as List<int>?) ?? const <int>[];
 
     return FormField<List<int>>(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       initialValue: selected,
       // Проверяется значение из _values, а не внутреннее значение поля:
       // согласование зависимых списков меняет первое напрямую.
@@ -368,6 +374,7 @@ class EntityFormState extends State<EntityForm> {
     final value = _values[field.name] as Object?;
 
     return DropdownButtonFormField<Object>(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(
@@ -404,6 +411,7 @@ class EntityFormState extends State<EntityForm> {
     final value = _values[field.name] as DateTime?;
 
     return FormField<DateTime>(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       initialValue: value,
       validator: (_) => field.validator?.call(_values[field.name] as DateTime?),
       builder: (state) {
