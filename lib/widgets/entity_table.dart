@@ -24,7 +24,7 @@ class TableColumnSpec<T> {
 /// Таблица, пригодная для любой сущности. Выделение строк, сортировка,
 /// прокрутка и подсветка удалённых записей одинаковы для заявок
 /// и для сотрудников, различается только набор колонок.
-class EntityTable<T> extends StatelessWidget {
+class EntityTable<T> extends StatefulWidget {
   final List<TableColumnSpec<T>> columns;
   final List<T> items;
 
@@ -60,8 +60,49 @@ class EntityTable<T> extends StatelessWidget {
   });
 
   @override
+  State<EntityTable<T>> createState() => _EntityTableState<T>();
+}
+
+class _EntityTableState<T> extends State<EntityTable<T>> {
+  // Полосам прокрутки нужны собственные контроллеры: без них вложенные
+  // Scrollbar не знают, к какой из двух областей относятся.
+  final ScrollController _horizontal = ScrollController();
+  final ScrollController _vertical = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // На первом кадре контроллер ещё не привязан к области прокрутки,
+    // и постоянная полоса прокрутки не рисуется: она появлялась только
+    // после первой прокрутки, о которой пользователь не догадывался.
+    // Перестроение сразу после первого кадра эту полосу показывает.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _horizontal.dispose();
+    _vertical.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final columns = widget.columns;
+    final items = widget.items;
+    final idOf = widget.idOf;
+    final selected = widget.selected;
+    final onToggleSelect = widget.onToggleSelect;
+    final onToggleSelectAll = widget.onToggleSelectAll;
+    final sortField = widget.sortField;
+    final sortAscending = widget.sortAscending;
+    final onSort = widget.onSort;
+    final actions = widget.actions;
+    final isDimmed = widget.isDimmed;
+
     final selectable = onToggleSelect != null;
 
     // По этому индексу DataTable рисует стрелку направления.
@@ -79,7 +120,7 @@ class EntityTable<T> extends StatelessWidget {
           label: Text(column.label),
           numeric: column.numeric,
           onSort: (column.sortField != null && onSort != null)
-              ? (_, _) => onSort!(column.sortField!)
+              ? (_, _) => onSort(column.sortField!)
               : null,
         ),
       if (actions != null) const DataColumn(label: Text('Действия')),
@@ -90,7 +131,7 @@ class EntityTable<T> extends StatelessWidget {
         DataRow(
           selected: selected.contains(idOf(item)),
           onSelectChanged: selectable
-              ? (_) => onToggleSelect!(idOf(item))
+              ? (_) => onToggleSelect(idOf(item))
               : null,
           color: (isDimmed?.call(item) ?? false)
               ? WidgetStatePropertyAll(
@@ -116,7 +157,7 @@ class EntityTable<T> extends StatelessWidget {
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: actions!(context, item),
+                    children: actions(context, item),
                   ),
                 ),
               ),
@@ -125,31 +166,45 @@ class EntityTable<T> extends StatelessWidget {
     ];
 
     // DataTable не прокручивается сам и не сжимается, поэтому прокрутка
-    // по обеим осям. ConstrainedBox растягивает таблицу на ширину окна.
-    return Scrollbar(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+    // по обеим осям. Горизонтальная область внешняя: её полоса прокрутки
+    // остаётся прижатой к низу окна и видна всегда, а не уезжает вместе
+    // с содержимым. Ширина берётся из LayoutBuilder, а не из размера
+    // окна: боковая полоса навигации занимает часть ширины.
+    return LayoutBuilder(
+      builder: (context, constraints) => Scrollbar(
+        controller: _horizontal,
+        thumbVisibility: true,
+        trackVisibility: true,
+        scrollbarOrientation: ScrollbarOrientation.bottom,
         child: SingleChildScrollView(
+          controller: _horizontal,
           scrollDirection: Axis.horizontal,
+          // Отступ снизу оставляет место самой полосе прокрутки, иначе
+          // она легла бы поверх последней строки.
+          padding: const EdgeInsets.only(bottom: 14),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: MediaQuery.sizeOf(context).width - 200,
-            ),
-            child: DataTable(
-              columns: dataColumns,
-              rows: rows,
-              sortColumnIndex: sortColumnIndex,
-              sortAscending: sortAscending,
-              showCheckboxColumn: selectable,
-              onSelectAll: onToggleSelectAll == null
-                  ? null
-                  : (_) => onToggleSelectAll!(),
-              headingRowColor: WidgetStatePropertyAll(
-                theme.colorScheme.surfaceContainerHigh,
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Scrollbar(
+              controller: _vertical,
+              child: SingleChildScrollView(
+                controller: _vertical,
+                child: DataTable(
+                  columns: dataColumns,
+                  rows: rows,
+                  sortColumnIndex: sortColumnIndex,
+                  sortAscending: sortAscending,
+                  showCheckboxColumn: selectable,
+                  onSelectAll: onToggleSelectAll == null
+                      ? null
+                      : (_) => onToggleSelectAll(),
+                  headingRowColor: WidgetStatePropertyAll(
+                    theme.colorScheme.surfaceContainerHigh,
+                  ),
+                  columnSpacing: 8,
+                  horizontalMargin: 10,
+                  headingTextStyle: theme.textTheme.labelLarge,
+                ),
               ),
-              columnSpacing: 8,
-              horizontalMargin: 10,
-              headingTextStyle: theme.textTheme.labelLarge,
             ),
           ),
         ),
