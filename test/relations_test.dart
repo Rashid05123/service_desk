@@ -11,15 +11,14 @@ import 'package:service_desk/repositories/app_repositories.dart';
 /// Связи между сущностями: запрет удаления записи, на которую ссылаются,
 /// и согласованность начального набора.
 void main() {
-  late AppRepositories repositories;
+  late LocalRepositories repositories;
 
   setUp(() {
-    repositories = AppRepositories(FaultSwitch(), MemoryCollectionStore());
+    repositories = LocalRepositories(FaultSwitch(), MemoryCollectionStore());
   });
 
   group('запрет удаления записи, на которую ссылаются', () {
-    test('отдел с сотрудниками удалить нельзя, и сказано сколько их',
-        () async {
+    test('отдел с сотрудниками удалить нельзя, и сказано сколько их', () async {
       // Отдел технической поддержки — тот, где больше всего сотрудников.
       const departmentId = 1;
       final employees = repositories.employees.countByDepartment(departmentId);
@@ -29,8 +28,11 @@ void main() {
         repositories.departments.softDelete(departmentId),
         throwsA(
           isA<ReferenceConstraintException>()
-              .having((e) => e.dependents['сотрудников'], 'сотрудников',
-                  employees)
+              .having(
+                (e) => e.dependents['сотрудников'],
+                'сотрудников',
+                employees,
+              )
               .having((e) => e.total, 'всего ссылок', greaterThan(0)),
         ),
       );
@@ -105,8 +107,7 @@ void main() {
       );
     });
 
-    test('категория с заявками и компетенциями удалению не подлежит',
-        () async {
+    test('категория с заявками и компетенциями удалению не подлежит', () async {
       await expectLater(
         repositories.categories.softDelete(1),
         throwsA(
@@ -126,23 +127,25 @@ void main() {
       );
     });
 
-    test('множественное удаление отклоняется целиком, а не наполовину',
-        () async {
-      final before = repositories.departments.rows
-          .where((d) => !d.isDeleted)
-          .length;
+    test(
+      'множественное удаление отклоняется целиком, а не наполовину',
+      () async {
+        final before = repositories.departments.rows
+            .where((d) => !d.isDeleted)
+            .length;
 
-      await expectLater(
-        // Отдел 10 (Канцелярия) ссылок не имеет, отдел 1 — имеет.
-        repositories.departments.deleteMany([10, 1]),
-        throwsA(isA<ReferenceConstraintException>()),
-      );
+        await expectLater(
+          // Отдел 10 (Канцелярия) ссылок не имеет, отдел 1 — имеет.
+          repositories.departments.deleteMany([10, 1]),
+          throwsA(isA<ReferenceConstraintException>()),
+        );
 
-      final after = repositories.departments.rows
-          .where((d) => !d.isDeleted)
-          .length;
-      expect(after, before);
-    });
+        final after = repositories.departments.rows
+            .where((d) => !d.isDeleted)
+            .length;
+        expect(after, before);
+      },
+    );
   });
 
   group('уникальность', () {
@@ -171,34 +174,36 @@ void main() {
       );
     });
 
-    test('логин заявителя уникален, и имя поля указывает на вложенное поле',
-        () async {
-      expect(
-        () => repositories.requesters.create(
-          Requester(
-            id: 0,
-            fullName: 'Новиков Пётр Ильич',
-            position: 'Специалист',
-            departmentId: 5,
-            account: const ServiceAccount(
-              login: 'semenov.av',
-              email: 'novikov@corp.local',
-              phone: '+7 495 000-30-99',
-              office: 'Корпус Б, каб. 203',
-              isBlocked: false,
+    test(
+      'логин заявителя уникален, и имя поля указывает на вложенное поле',
+      () async {
+        expect(
+          () => repositories.requesters.create(
+            Requester(
+              id: 0,
+              fullName: 'Новиков Пётр Ильич',
+              position: 'Специалист',
+              departmentId: 5,
+              account: const ServiceAccount(
+                login: 'semenov.av',
+                email: 'novikov@corp.local',
+                phone: '+7 495 000-30-99',
+                office: 'Корпус Б, каб. 203',
+                isBlocked: false,
+              ),
+              note: '',
             ),
-            note: '',
           ),
-        ),
-        throwsA(
-          isA<UniqueConstraintException>().having(
-            (e) => e.field,
-            'field',
-            'account.login',
+          throwsA(
+            isA<UniqueConstraintException>().having(
+              (e) => e.field,
+              'field',
+              'account.login',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('код отдела уникален независимо от регистра', () async {
       expect(

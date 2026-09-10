@@ -47,8 +47,7 @@ class RequesterListScreen extends StatelessWidget {
         ),
         TableColumnSpec(
           label: 'Отдел',
-          build: (context, r) =>
-              Text(reference.departmentName(r.departmentId)),
+          build: (context, r) => Text(reference.departmentName(r.departmentId)),
         ),
         TableColumnSpec(
           label: 'Логин',

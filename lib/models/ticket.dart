@@ -68,10 +68,7 @@ class Ticket implements Entity<Ticket> {
 
   /// Все сотрудники, участвующие в заявке, — для проверки ссылок
   /// при удалении сотрудника.
-  List<int> get involvedEmployeeIds => [
-    ?assigneeId,
-    ...coworkerIds,
-  ];
+  List<int> get involvedEmployeeIds => [?assigneeId, ...coworkerIds];
 
   Ticket copyWith({
     String? number,
@@ -157,7 +154,9 @@ class Ticket implements Entity<Ticket> {
       number: Json.asString(json['number']),
       subject: Json.asString(json['subject']),
       description: Json.asString(json['description']),
-      categoryId: Json.asInt(json['categoryId']),
+      // Ссылки приходят развёрнутыми объектами, а уходят числами:
+      // контракт различает представление на чтение и на запись.
+      categoryId: Json.refId(json['category'], json['categoryId']),
       // Приведение через Json.asString: в записи прошлого формата
       // на этом месте мог оказаться не текст, и `as String?` бросил бы
       // исключение вместо возврата значения по умолчанию.
@@ -167,9 +166,9 @@ class Ticket implements Entity<Ticket> {
       status:
           TicketStatus.fromCode(Json.asString(json['status'])) ??
           TicketStatus.newly,
-      assigneeId: Json.asIntOrNull(json['assigneeId']),
-      coworkerIds: Json.asIntList(json['coworkerIds']),
-      requesterId: Json.asInt(json['requesterId']),
+      assigneeId: Json.refIdOrNull(json['assignee'], json['assigneeId']),
+      coworkerIds: Json.refIdList(json['coworkers'], json['coworkerIds']),
+      requesterId: Json.refId(json['requester'], json['requesterId']),
       createdAt: createdAt,
       dueAt: Json.asDate(json['dueAt'], createdAt),
       deletedAt: Json.asDateOrNull(json['deletedAt']),

@@ -13,14 +13,15 @@ import 'stored_repository.dart';
 abstract interface class TicketRepository
     implements CrudRepository<Ticket, TicketQuery> {
   /// Свободный регистрационный номер — подсказка для формы создания.
-  String nextNumber();
-
-  int countByCategory(int categoryId);
-
-  int countByEmployee(int employeeId);
-
-  int countByRequester(int requesterId);
+  /// Выдаётся хранилищем, а не формой: только оно видит все заявки.
+  Future<String> nextNumber();
 }
+
+/// Синхронные подсчёты и списки доступных записей из договора убраны:
+/// по сети их не выполнить одним обращением. Число связанных записей
+/// теперь приходит с сервера полем самой записи, а списки для формы
+/// собирает кэш справочников. У локальной реализации эти методы
+/// остались — на них стоят проверки ПР3.
 
 /// Хранилище заявок поверх localStorage. Порядок операций такой же, как
 /// на сервере: отбор, сортировка, вырезка страницы.
@@ -56,7 +57,7 @@ class PersistentTicketRepository extends StoredRepository<Ticket>
   }
 
   @override
-  String nextNumber() {
+  Future<String> nextNumber() async {
     var maxNumber = 0;
     for (final ticket in rows) {
       final digits = ticket.number.replaceAll(RegExp(r'[^0-9]'), '');
@@ -66,27 +67,23 @@ class PersistentTicketRepository extends StoredRepository<Ticket>
     return 'SD-${(maxNumber + 1).toString().padLeft(6, '0')}';
   }
 
-  @override
-  int countByCategory(int categoryId) => rows
-      .where((t) => !t.isDeleted && t.categoryId == categoryId)
-      .length;
+  int countByCategory(int categoryId) =>
+      rows.where((t) => !t.isDeleted && t.categoryId == categoryId).length;
 
-  @override
   int countByEmployee(int employeeId) => rows
       .where((t) => !t.isDeleted && t.involvedEmployeeIds.contains(employeeId))
       .length;
 
-  @override
-  int countByRequester(int requesterId) => rows
-      .where((t) => !t.isDeleted && t.requesterId == requesterId)
-      .length;
+  int countByRequester(int requesterId) =>
+      rows.where((t) => !t.isDeleted && t.requesterId == requesterId).length;
 
   @override
   Future<PageResult<Ticket>> find(TicketQuery query) async {
     await Future.delayed(StoredRepository.latency);
     faults.throwIfEnabled();
 
-    var result = rows.where((t) => query.includeDeleted || !t.isDeleted)
+    var result = rows
+        .where((t) => query.includeDeleted || !t.isDeleted)
         .toList();
 
     // Поиск по номеру заявки и по теме, регистр не учитывается.

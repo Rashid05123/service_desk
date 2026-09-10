@@ -10,10 +10,7 @@ import 'stored_repository.dart';
 
 /// Договор доступа к категориям заявок.
 abstract interface class CategoryRepository
-    implements CrudRepository<TicketCategory, CategoryQuery> {
-  /// Действующие категории — то, что предлагается в форме заявки.
-  List<TicketCategory> get available;
-}
+    implements CrudRepository<TicketCategory, CategoryQuery> {}
 
 /// Хранилище категорий. На категорию ссылаются и заявки, и компетенции
 /// сотрудников, поэтому зависимостей у неё две.
@@ -34,7 +31,9 @@ class PersistentCategoryRepository extends StoredRepository<TicketCategory>
   @override
   void checkUnique(TicketCategory item) {
     final name = item.name.trim().toLowerCase();
-    if (rows.any((c) => c.id != item.id && c.name.trim().toLowerCase() == name)) {
+    if (rows.any(
+      (c) => c.id != item.id && c.name.trim().toLowerCase() == name,
+    )) {
       throw UniqueConstraintException(
         'name',
         'Категория «${item.name}» уже есть в справочнике',
@@ -42,7 +41,6 @@ class PersistentCategoryRepository extends StoredRepository<TicketCategory>
     }
   }
 
-  @override
   List<TicketCategory> get available =>
       activeRows.where((c) => c.isActive).toList();
 

@@ -10,10 +10,7 @@ import 'stored_repository.dart';
 
 /// Договор доступа к отделам.
 abstract interface class DepartmentRepository
-    implements CrudRepository<Department, DepartmentQuery> {
-  /// Действующие отделы — источник выпадающих списков форм.
-  List<Department> get available;
-}
+    implements CrudRepository<Department, DepartmentQuery> {}
 
 /// Хранилище отделов. Сторона «один» связи один ко многим, поэтому именно
 /// здесь срабатывает запрет удаления записи, на которую ссылаются.
@@ -36,13 +33,17 @@ class PersistentDepartmentRepository extends StoredRepository<Department>
     final name = item.name.trim().toLowerCase();
     final code = item.code.trim().toUpperCase();
 
-    if (rows.any((d) => d.id != item.id && d.name.trim().toLowerCase() == name)) {
+    if (rows.any(
+      (d) => d.id != item.id && d.name.trim().toLowerCase() == name,
+    )) {
       throw UniqueConstraintException(
         'name',
         'Отдел с названием «${item.name}» уже есть в справочнике',
       );
     }
-    if (rows.any((d) => d.id != item.id && d.code.trim().toUpperCase() == code)) {
+    if (rows.any(
+      (d) => d.id != item.id && d.code.trim().toUpperCase() == code,
+    )) {
       throw UniqueConstraintException(
         'code',
         'Код ${item.code} уже занят другим отделом',
@@ -50,7 +51,6 @@ class PersistentDepartmentRepository extends StoredRepository<Department>
     }
   }
 
-  @override
   List<Department> get available => activeRows;
 
   @override

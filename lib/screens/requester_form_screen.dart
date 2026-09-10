@@ -98,7 +98,9 @@ class _RequesterFormBody extends StatelessWidget {
         } else {
           await repository.create(saved);
         }
-        reference.refresh();
+        // Справочник изменился — кэш помечается устаревшим, иначе новая
+        // запись не появится в выпадающих списках других форм.
+        reference.invalidate();
         await list.load();
         if (context.mounted) context.go(listUri());
       },

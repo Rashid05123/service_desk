@@ -21,6 +21,10 @@ class Requester implements Entity<Requester> {
   @override
   final DateTime? deletedAt;
 
+  /// Число заявок, в которых участвует запись. Приходит с сервера вместе
+  /// с ней и служит только для показа; в [toJson] не попадает.
+  final int ticketCount;
+
   const Requester({
     required this.id,
     required this.fullName,
@@ -29,6 +33,7 @@ class Requester implements Entity<Requester> {
     required this.account,
     required this.note,
     this.deletedAt,
+    this.ticketCount = 0,
   });
 
   bool get isDeleted => deletedAt != null;
@@ -88,11 +93,12 @@ class Requester implements Entity<Requester> {
     id: Json.asInt(json['id']),
     fullName: Json.asString(json['fullName']),
     position: Json.asString(json['position']),
-    departmentId: Json.asInt(json['departmentId']),
+    departmentId: Json.refId(json['department'], json['departmentId']),
     // Вложенный объект тоже может отсутствовать: разбор идёт через
     // asMap, а не приведением к Map<String, dynamic> напрямую.
     account: ServiceAccount.fromJson(Json.asMap(json['account'])),
     note: Json.asString(json['note']),
     deletedAt: Json.asDateOrNull(json['deletedAt']),
+    ticketCount: Json.asInt(json['ticketCount']),
   );
 }

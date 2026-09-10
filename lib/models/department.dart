@@ -19,6 +19,14 @@ class Department implements Entity<Department> {
   @override
   final DateTime? deletedAt;
 
+  /// Счётчики связей приходят с сервера вместе с записью и служат только
+  /// для показа. В ПР3 это же число считалось синхронным перебором чужой
+  /// коллекции — по сети так нельзя, а отдельный запрос на каждую строку
+  /// таблицы означал бы десяток обращений на одну страницу списка.
+  /// В [toJson] они не попадают: на запись сервер их не принимает.
+  final int employeeCount;
+  final int requesterCount;
+
   const Department({
     required this.id,
     required this.name,
@@ -26,6 +34,8 @@ class Department implements Entity<Department> {
     required this.location,
     required this.phone,
     this.deletedAt,
+    this.employeeCount = 0,
+    this.requesterCount = 0,
   });
 
   bool get isDeleted => deletedAt != null;
@@ -81,5 +91,7 @@ class Department implements Entity<Department> {
     location: Json.asString(json['location']),
     phone: Json.asString(json['phone']),
     deletedAt: Json.asDateOrNull(json['deletedAt']),
+    employeeCount: Json.asInt(json['employeeCount']),
+    requesterCount: Json.asInt(json['requesterCount']),
   );
 }

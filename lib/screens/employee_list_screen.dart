@@ -46,8 +46,7 @@ class EmployeeListScreen extends StatelessWidget {
         ),
         TableColumnSpec(
           label: 'Отдел',
-          build: (context, e) =>
-              Text(reference.departmentName(e.departmentId)),
+          build: (context, e) => Text(reference.departmentName(e.departmentId)),
         ),
         TableColumnSpec(
           label: 'Линия',
@@ -76,7 +75,9 @@ class EmployeeListScreen extends StatelessWidget {
         TableColumnSpec(
           label: 'Работает',
           build: (context, e) => Icon(
-            e.isActive ? Icons.check_circle_outline : Icons.remove_circle_outline,
+            e.isActive
+                ? Icons.check_circle_outline
+                : Icons.remove_circle_outline,
             size: 18,
             color: e.isActive
                 ? Theme.of(context).colorScheme.primary

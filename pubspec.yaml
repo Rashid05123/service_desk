@@ -45,6 +45,7 @@ dependencies:
 
   # ПР3: хранение данных между перезагрузками. На web пишет в localStorage.
   shared_preferences: ^2.5.3
+  dio: ^5.11.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

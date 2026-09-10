@@ -5,9 +5,15 @@ import 'load_status.dart';
 /// Состояние экрана карточки. Обобщён по типу записи: у заявки и у
 /// сотрудника отличается только функция загрузки.
 class DetailNotifier<T> extends ChangeNotifier {
-  DetailNotifier(this._loader);
+  DetailNotifier(this._loader, {this.prepare});
 
   final Future<T?> Function(int id) _loader;
+
+  /// Что ещё нужно карточке до показа. Названия по ссылкам берутся
+  /// из кэша справочников, и без него карточка покажет «не найдено»
+  /// вместо категории и исполнителя — при прямом переходе по адресу
+  /// список, который обычно прогревает кэш, не открывался вовсе.
+  final Future<void> Function()? prepare;
 
   T? _item;
   LoadStatus _status = LoadStatus.idle;
@@ -32,7 +38,11 @@ class DetailNotifier<T> extends ChangeNotifier {
     _safeNotify();
 
     try {
-      final result = await _loader(id);
+      // Запись и справочники запрашиваются одновременно: они
+      // не зависят друг от друга.
+      final record = _loader(id);
+      await prepare?.call();
+      final result = await record;
       if (_lastId != id) return; // пользователь успел открыть другую запись
       _item = result;
       _status = LoadStatus.success;

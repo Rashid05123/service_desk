@@ -114,7 +114,9 @@ String? ticketNumber(String? value) {
   return null;
 }
 
-final RegExp _fullNamePattern = RegExp(r'^[А-ЯЁ][а-яё-]+(\s+[А-ЯЁ][а-яё-]+){1,2}$');
+final RegExp _fullNamePattern = RegExp(
+  r'^[А-ЯЁ][а-яё-]+(\s+[А-ЯЁ][а-яё-]+){1,2}$',
+);
 
 /// ФИО: фамилия и имя обязательно, отчество по желанию.
 String? fullName(String? value) {

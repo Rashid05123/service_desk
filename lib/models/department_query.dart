@@ -120,12 +120,6 @@ class DepartmentQuery implements ListQuery<DepartmentQuery> {
       other.includeDeleted == includeDeleted;
 
   @override
-  int get hashCode => Object.hash(
-    search,
-    sortField,
-    sortAscending,
-    page,
-    size,
-    includeDeleted,
-  );
+  int get hashCode =>
+      Object.hash(search, sortField, sortAscending, page, size, includeDeleted);
 }

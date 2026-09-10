@@ -26,6 +26,7 @@ abstract class StoredRepository<T extends Entity<T>> {
 
   /// Учебный переключатель отказа. Наследник дёргает его в своём find.
   final FaultSwitch faults;
+
   /// Хранилище коллекций: localStorage в приложении, карта в тестах.
   final CollectionStore store;
 
@@ -92,6 +93,9 @@ abstract class StoredRepository<T extends Entity<T>> {
 
   /// Название записи для сообщения об отказе в удалении.
   String describe(T item) => 'запись $item';
+
+  /// Локальная выборка завершается сразу же, отменять нечего.
+  void cancelPendingFind() {}
 
   Future<T?> findById(int id) async {
     await Future.delayed(latency);

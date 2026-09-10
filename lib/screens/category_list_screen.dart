@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../core/formatting.dart';
 import '../models/category.dart';
 import '../models/category_query.dart';
-import '../repositories/app_repositories.dart';
 import '../widgets/entity_list_page.dart';
 import '../widgets/entity_table.dart';
 import '../widgets/filter_fields.dart';
@@ -15,8 +13,6 @@ class CategoryListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repositories = context.read<AppRepositories>();
-
     return EntityListPage<TicketCategory, CategoryQuery>(
       path: '/categories',
       title: 'Категории заявок',
@@ -52,14 +48,12 @@ class CategoryListScreen extends StatelessWidget {
         TableColumnSpec(
           label: 'Заявок',
           numeric: true,
-          build: (context, c) =>
-              Text('${repositories.tickets.countByCategory(c.id)}'),
+          build: (context, c) => Text('${c.ticketCount}'),
         ),
         TableColumnSpec(
           label: 'Сотрудников',
           numeric: true,
-          build: (context, c) =>
-              Text('${repositories.employees.countByCategory(c.id)}'),
+          build: (context, c) => Text('${c.employeeCount}'),
         ),
         TableColumnSpec(
           label: 'Действует',
@@ -83,7 +77,7 @@ class CategoryListScreen extends StatelessWidget {
         ),
         Chip(
           visualDensity: VisualDensity.compact,
-          label: Text('заявок: ${repositories.tickets.countByCategory(c.id)}'),
+          label: Text('заявок: ${c.ticketCount}'),
         ),
       ],
       filters: (context, query, onChanged) => FilterRow(

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/api_exceptions.dart';
 import '../core/exceptions.dart';
 import '../models/list_query.dart';
 import '../models/page_result.dart';
@@ -60,6 +61,14 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
   Future<void> load() async {
     final requestId = ++_requestId;
 
+    // Предыдущий запрос уже не нужен: пользователь набрал следующую
+    // букву в поиске или перешёл на другую страницу. Без отмены ответы
+    // приходят не в том порядке, в котором отправлены, и на экране
+    // оказывается результат по устаревшим условиям. Счётчик запросов
+    // ниже от этого тоже защищает, но ответ всё равно пришлось бы
+    // ждать и разбирать: отмена снимает и лишний трафик.
+    repository.cancelPendingFind();
+
     _status = LoadStatus.loading;
     _error = null;
     _safeNotify();
@@ -69,6 +78,10 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
       if (requestId != _requestId) return; // ответ устарел
       _result = page;
       _status = LoadStatus.success;
+    } on CancelledException {
+      // Запрос отменило само приложение. Это не сбой, и состояние
+      // ошибки показывать нельзя: за экран уже отвечает новый запрос.
+      return;
     } catch (e) {
       if (requestId != _requestId) return;
       _error = '$failureMessage: $e';
@@ -149,9 +162,16 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
   Future<bool> _mutate(Future<void> Function() action) async {
     try {
       await action();
+    } on ConflictException catch (e) {
+      // Отказ по ссылкам с сервера: сообщение уже собрано там, где
+      // известно, сколько записей ссылается и как они называются.
+      _actionError = e.message;
+      _safeNotify();
+      return false;
     } on ReferenceConstraintException catch (e) {
-      // Без местоимения: род у «отдела», «категории» и «заявки» разный,
-      // и одна формулировка на всех иначе не получается.
+      // То же самое от локального хранилища. Без местоимения: род
+      // у «отдела», «категории» и «заявки» разный, и одна формулировка
+      // на всех иначе не получается.
       _actionError =
           'Нельзя удалить: ${e.subject}. Связанные записи: ${e.details}.';
       _safeNotify();

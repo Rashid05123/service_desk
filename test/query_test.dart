@@ -100,10 +100,7 @@ void main() {
     });
 
     test('номер страницы меньше первой поднимается до первой', () {
-      expect(
-        TicketQuery.fromQueryParameters(const {'page': '-3'}).page,
-        1,
-      );
+      expect(TicketQuery.fromQueryParameters(const {'page': '-3'}).page, 1);
     });
 
     test('нечисловые идентификаторы становятся незаданным фильтром', () {

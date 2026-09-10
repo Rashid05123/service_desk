@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/api_client.dart';
 import 'core/fault_switch.dart';
-import 'data/collection_store.dart';
 import 'models/category.dart';
 import 'models/category_query.dart';
 import 'models/department.dart';
@@ -25,22 +24,23 @@ import 'repositories/ticket_repository.dart';
 import 'state/list_notifier.dart';
 import 'state/reference_data_notifier.dart';
 
-Future<void> main() async {
-  // Хранилище читается до запуска приложения, поэтому нужна ручная
-  // инициализация привязки виджетов.
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Адрес без решётки: /tickets вместо /#/tickets.
   usePathUrlStrategy();
 
-  final prefs = await SharedPreferences.getInstance();
-  final store = PrefsCollectionStore(prefs);
+  // Учебные переключатели отказа и задержки: интерсептор дописывает
+  // по ним параметры запроса, которые понимает сервер.
   final faults = FaultSwitch();
 
-  // Репозитории создаются до дерева виджетов и здесь же связываются
-  // между собой: отдел должен знать, кто на него ссылается, а provider
-  // создаёт объекты по требованию и такого порядка не гарантирует.
-  final repositories = AppRepositories(faults, store);
+  // Единственное место, где приложение меняется при переходе на сервер.
+  // Экраны, формы, состояние списка и условия отбора остались теми же:
+  // они работают с договором доступа к данным, а не с его реализацией.
+  //
+  // Было: AppRepositories(faults, PrefsCollectionStore(prefs))
+  final dio = buildDio(faults: faults);
+  final repositories = AppRepositories.api(dio);
 
   runApp(
     MultiProvider(
@@ -48,8 +48,7 @@ Future<void> main() async {
         Provider<FaultSwitch>.value(value: faults),
         Provider<AppRepositories>.value(value: repositories),
 
-        // Экраны работают с договорами, а не с реализациями: в ПР4
-        // подменяется только эта часть.
+        // Экраны работают с договорами, а не с реализациями.
         Provider<TicketRepository>.value(value: repositories.tickets),
         Provider<EmployeeRepository>.value(value: repositories.employees),
         Provider<RequesterRepository>.value(value: repositories.requesters),
@@ -103,7 +102,7 @@ Future<void> main() async {
           ),
         ),
       ],
-      child: ServiceDeskApp(storageNotice: store.consumeNotice()),
+      child: const ServiceDeskApp(),
     ),
   );
 }

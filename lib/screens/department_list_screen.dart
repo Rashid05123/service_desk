@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../core/formatting.dart';
 import '../models/department.dart';
 import '../models/department_query.dart';
-import '../repositories/app_repositories.dart';
 import '../widgets/entity_list_page.dart';
 import '../widgets/entity_table.dart';
 
@@ -16,11 +14,10 @@ class DepartmentListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repositories = context.read<AppRepositories>();
-
-    int linked(Department d) =>
-        repositories.employees.countByDepartment(d.id) +
-        repositories.requesters.countByDepartment(d.id);
+    // Число ссылок приходит с сервера вместе с записью: считать его
+    // на клиенте пришлось бы перебором чужих коллекций, которых
+    // у клиента больше нет.
+    int linked(Department d) => d.employeeCount + d.requesterCount;
 
     return EntityListPage<Department, DepartmentQuery>(
       path: '/departments',
@@ -51,21 +48,16 @@ class DepartmentListScreen extends StatelessWidget {
           sortField: 'location',
           build: (context, d) => Text(d.location),
         ),
-        TableColumnSpec(
-          label: 'Телефон',
-          build: (context, d) => Text(d.phone),
-        ),
+        TableColumnSpec(label: 'Телефон', build: (context, d) => Text(d.phone)),
         TableColumnSpec(
           label: 'Сотрудников',
           numeric: true,
-          build: (context, d) =>
-              Text('${repositories.employees.countByDepartment(d.id)}'),
+          build: (context, d) => Text('${d.employeeCount}'),
         ),
         TableColumnSpec(
           label: 'Заявителей',
           numeric: true,
-          build: (context, d) =>
-              Text('${repositories.requesters.countByDepartment(d.id)}'),
+          build: (context, d) => Text('${d.requesterCount}'),
         ),
       ],
       cardTitle: (d) => '${d.name} (${d.code})',

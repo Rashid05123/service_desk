@@ -53,7 +53,8 @@ String pluralSelected(int count) =>
 String pluralEmployees(int count) =>
     _plural(count, 'сотрудник', 'сотрудника', 'сотрудников');
 
-String pluralDepartments(int count) => _plural(count, 'отдел', 'отдела', 'отделов');
+String pluralDepartments(int count) =>
+    _plural(count, 'отдел', 'отдела', 'отделов');
 
 String pluralCategories(int count) =>
     _plural(count, 'категория', 'категории', 'категорий');

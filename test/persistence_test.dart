@@ -96,7 +96,9 @@ void main() {
     // Так выглядит запись, которую не разобрать: у неё нет ни одного
     // пригодного поля, а id вообще не число.
     final rows = store.read('categories')!;
-    rows.add({'id': <String>['сломано']});
+    rows.add({
+      'id': <String>['сломано'],
+    });
     await store.write('categories', rows);
 
     final second = PersistentCategoryRepository(faults, store);
@@ -130,10 +132,7 @@ void main() {
       ),
     );
 
-    expect(
-      repository.available.any((c) => c.name == 'Мониторинг'),
-      isTrue,
-    );
+    expect(repository.available.any((c) => c.name == 'Мониторинг'), isTrue);
   });
 
   test('условия отбора переживают запись в адрес и разбор обратно', () {
@@ -151,9 +150,7 @@ void main() {
       includeDeleted: true,
     );
 
-    final restored = TicketQuery.fromQueryParameters(
-      query.toQueryParameters(),
-    );
+    final restored = TicketQuery.fromQueryParameters(query.toQueryParameters());
 
     expect(restored, query);
   });

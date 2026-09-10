@@ -18,6 +18,14 @@ class TicketCategory implements Entity<TicketCategory> {
   @override
   final DateTime? deletedAt;
 
+  /// Счётчики связей приходят с сервера вместе с записью и служат только
+  /// для показа. В ПР3 это же число считалось синхронным перебором чужой
+  /// коллекции — по сети так нельзя, а отдельный запрос на каждую строку
+  /// таблицы означал бы десяток обращений на одну страницу списка.
+  /// В [toJson] они не попадают: на запись сервер их не принимает.
+  final int ticketCount;
+  final int employeeCount;
+
   const TicketCategory({
     required this.id,
     required this.name,
@@ -25,6 +33,8 @@ class TicketCategory implements Entity<TicketCategory> {
     required this.slaHours,
     required this.isActive,
     this.deletedAt,
+    this.ticketCount = 0,
+    this.employeeCount = 0,
   });
 
   bool get isDeleted => deletedAt != null;
@@ -80,5 +90,7 @@ class TicketCategory implements Entity<TicketCategory> {
     slaHours: Json.asInt(json['slaHours'], 24),
     isActive: Json.asBool(json['isActive'], true),
     deletedAt: Json.asDateOrNull(json['deletedAt']),
+    ticketCount: Json.asInt(json['ticketCount']),
+    employeeCount: Json.asInt(json['employeeCount']),
   );
 }

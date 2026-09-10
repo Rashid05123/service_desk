@@ -62,8 +62,11 @@ class Json {
     return value.map(asIntOrNull).whereType<int>().toList();
   }
 
+  /// Время приводится к местному поясу. Хранилище писало дату без
+  /// пояса, сервер отдаёт её с суффиксом Z — без приведения одно и то же
+  /// время показывалось бы по-разному в зависимости от источника.
   static DateTime? asDateOrNull(Object? value) {
-    if (value is String) return DateTime.tryParse(value);
+    if (value is String) return DateTime.tryParse(value)?.toLocal();
     return null;
   }
 
@@ -73,5 +76,31 @@ class Json {
   static Map<String, dynamic> asMap(Object? value) {
     if (value is Map) return value.cast<String, dynamic>();
     return const {};
+  }
+
+  /// Ссылка на другую запись в любом из двух представлений.
+  ///
+  /// Контракт API различает запись и чтение: на сервер уходит
+  /// `categoryId`, а обратно приходит развёрнутый объект `category`.
+  /// Модель хранит ссылку числом, поэтому идентификатор берётся из того
+  /// представления, которое пришло. Это же позволяет читать записи,
+  /// сохранённые в браузере в ПР3.
+  static int? refIdOrNull(Object? nested, Object? plain) {
+    if (nested is Map) return asIntOrNull(nested['id']);
+    return asIntOrNull(plain);
+  }
+
+  static int refId(Object? nested, Object? plain, [int fallback = 0]) =>
+      refIdOrNull(nested, plain) ?? fallback;
+
+  /// Список ссылок: `coworkers: [{id: 4}]` либо `coworkerIds: [4]`.
+  static List<int> refIdList(Object? nested, Object? plain) {
+    if (nested is List) {
+      return nested
+          .map((e) => e is Map ? asIntOrNull(e['id']) : asIntOrNull(e))
+          .whereType<int>()
+          .toList();
+    }
+    return asIntList(plain);
   }
 }

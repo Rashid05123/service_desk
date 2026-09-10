@@ -28,7 +28,8 @@ class RequesterDetailScreen extends StatelessWidget {
         final account = requester.account;
 
         return [
-          if (requester.isDeleted) DeletedBanner(deletedAt: requester.deletedAt!),
+          if (requester.isDeleted)
+            DeletedBanner(deletedAt: requester.deletedAt!),
           Text(requester.fullName, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 4),
           Text(
@@ -41,10 +42,7 @@ class RequesterDetailScreen extends StatelessWidget {
           Card(
             child: Column(
               children: [
-                DetailRow(
-                  'Отдел',
-                  department?.name ?? '— отдел не найден —',
-                ),
+                DetailRow('Отдел', department?.name ?? '— отдел не найден —'),
                 if (requester.note.isNotEmpty)
                   DetailRow('Примечание', requester.note),
               ],
@@ -68,9 +66,7 @@ class RequesterDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Card(
-            color: account.isBlocked
-                ? theme.colorScheme.errorContainer
-                : null,
+            color: account.isBlocked ? theme.colorScheme.errorContainer : null,
             child: Column(
               children: [
                 DetailRow('Логин', account.login),
@@ -92,9 +88,8 @@ class RequesterDetailScreen extends StatelessWidget {
             onPressed: () => context.go(
               Uri(
                 path: '/tickets',
-                queryParameters: TicketQuery(
-                  requesterId: requester.id,
-                ).toQueryParameters(),
+                queryParameters: TicketQuery(requesterId: requester.id)
+                    .toQueryParameters(),
               ).toString(),
             ),
             icon: const Icon(Icons.list_alt),

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 import '../models/department.dart';
 import '../models/employee_query.dart';
 import '../models/requester_query.dart';
-import '../repositories/app_repositories.dart';
 import '../widgets/detail_page.dart';
 
 /// Карточка отдела. Сторона «один» связи один ко многим, поэтому здесь
@@ -15,8 +13,6 @@ class DepartmentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repositories = context.read<AppRepositories>();
-
     return DetailPage<Department>(
       listPath: '/departments',
       idOf: (d) => d.id,
@@ -25,12 +21,8 @@ class DepartmentDetailScreen extends StatelessWidget {
       notFoundDescription: 'Записи с таким номером нет в справочнике.',
       content: (context, department) {
         final theme = Theme.of(context);
-        final employees = repositories.employees.countByDepartment(
-          department.id,
-        );
-        final requesters = repositories.requesters.countByDepartment(
-          department.id,
-        );
+        final employees = department.employeeCount;
+        final requesters = department.requesterCount;
 
         return [
           if (department.isDeleted)

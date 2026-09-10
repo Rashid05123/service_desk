@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../models/category.dart';
 import '../models/employee_query.dart';
 import '../models/ticket_query.dart';
-import '../repositories/app_repositories.dart';
 import '../state/reference_data_notifier.dart';
 import '../widgets/detail_page.dart';
 
@@ -16,7 +15,6 @@ class CategoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repositories = context.read<AppRepositories>();
     final reference = context.watch<ReferenceDataNotifier>();
 
     return DetailPage<TicketCategory>(
@@ -27,7 +25,9 @@ class CategoryDetailScreen extends StatelessWidget {
       notFoundDescription: 'Записи с таким номером нет в справочнике.',
       content: (context, category) {
         final theme = Theme.of(context);
-        final tickets = repositories.tickets.countByCategory(category.id);
+        // Счётчик приходит с сервера полем записи; список сотрудников,
+        // обслуживающих направление, собирается из кэша справочников.
+        final tickets = category.ticketCount;
         final experts = reference.allEmployees
             .where((e) => !e.isDeleted && e.categoryIds.contains(category.id))
             .toList();
@@ -53,10 +53,7 @@ class CategoryDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Кто обслуживает категорию',
-            style: theme.textTheme.titleMedium,
-          ),
+          Text('Кто обслуживает категорию', style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
             'Только эти сотрудники предлагаются исполнителями заявок '
@@ -95,9 +92,8 @@ class CategoryDetailScreen extends StatelessWidget {
                 onPressed: () => context.go(
                   Uri(
                     path: '/tickets',
-                    queryParameters: TicketQuery(
-                      categoryId: category.id,
-                    ).toQueryParameters(),
+                    queryParameters: TicketQuery(categoryId: category.id)
+                        .toQueryParameters(),
                   ).toString(),
                 ),
                 icon: const Icon(Icons.list_alt),
@@ -107,9 +103,8 @@ class CategoryDetailScreen extends StatelessWidget {
                 onPressed: () => context.go(
                   Uri(
                     path: '/employees',
-                    queryParameters: EmployeeQuery(
-                      categoryId: category.id,
-                    ).toQueryParameters(),
+                    queryParameters: EmployeeQuery(categoryId: category.id)
+                        .toQueryParameters(),
                   ).toString(),
                 ),
                 icon: const Icon(Icons.badge_outlined),

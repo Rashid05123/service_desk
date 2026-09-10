@@ -7,6 +7,7 @@ import '../core/fault_switch.dart';
 import '../core/formatting.dart';
 import '../models/list_query.dart';
 import '../state/list_notifier.dart';
+import '../state/reference_data_notifier.dart';
 import '../state/load_status.dart';
 import 'confirm_dialog.dart';
 import 'debounced_search_field.dart';
@@ -77,7 +78,11 @@ class EntityListPage<T, Q extends ListQuery<Q>> extends StatefulWidget {
 
   /// Панель фильтров, своя у каждой сущности. Если её нет, кнопка
   /// «Фильтры» переключает только показ удалённых.
-  final Widget Function(BuildContext context, Q query, ValueChanged<Q> onChanged)?
+  final Widget Function(
+    BuildContext context,
+    Q query,
+    ValueChanged<Q> onChanged,
+  )?
   filters;
 
   @override
@@ -105,7 +110,11 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
     _filtersExpanded ??= query.activeFilterCount > 0;
     // notifyListeners внутри build вызывает исключение.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _notifier.applyQuery(query);
+      if (!mounted) return;
+      _notifier.applyQuery(query);
+      // Названия по ссылкам в таблице берутся из кэша справочников.
+      // Он общий на всё приложение и загружается один раз.
+      context.read<ReferenceDataNotifier>().warmUp();
     });
   }
 
@@ -316,7 +325,8 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
               children: [
                 Switch(
                   value: query.includeDeleted,
-                  onChanged: (value) => _goWith(query.withIncludeDeleted(value)),
+                  onChanged: (value) =>
+                      _goWith(query.withIncludeDeleted(value)),
                 ),
                 const SizedBox(width: 8),
                 Flexible(
@@ -405,14 +415,10 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
                 ? 'Под заданные условия отбора не подошла ни одна запись. '
                       'Попробуйте изменить их или сбросить.'
                 : widget.emptyDescription,
-            onReset: filtered
-                ? () => _goWith(notifier.query.cleared())
-                : null,
+            onReset: filtered ? () => _goWith(notifier.query.cleared()) : null,
           );
         }
-        return compact
-            ? _cards(context, notifier)
-            : _table(context, notifier);
+        return compact ? _cards(context, notifier) : _table(context, notifier);
     }
   }
 
@@ -504,8 +510,13 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
   }
 }
 
-/// Кнопка, включающая учебный отказ хранилища. Нужна, чтобы показать
-/// состояние ошибки на локальных данных.
+/// Учебные переключатели поведения сервера.
+///
+/// Оба параметра понимает сервер, поэтому приложение получает настоящий
+/// ответ с кодом 500 и настоящую задержку, а не подделку внутри клиента.
+/// Без них состояние загрузки на локальном сервере мелькает быстрее,
+/// чем его успеваешь увидеть, а чтобы показать состояние ошибки,
+/// сервер пришлось бы каждый раз останавливать.
 class FaultToggle extends StatefulWidget {
   final VoidCallback onChanged;
 
@@ -519,19 +530,40 @@ class _FaultToggleState extends State<FaultToggle> {
   @override
   Widget build(BuildContext context) {
     final faults = context.read<FaultSwitch>();
-    return Tooltip(
-      message: faults.enabled
-          ? 'Отключить учебный сбой хранилища'
-          : 'Включить учебный сбой хранилища',
-      child: IconButton(
-        icon: Icon(
-          faults.enabled ? Icons.bug_report : Icons.bug_report_outlined,
+    final scheme = Theme.of(context).colorScheme;
+    final active = faults.enabled || faults.slow;
+
+    return MenuAnchor(
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon: Icon(
+            faults.enabled ? Icons.check_box : Icons.check_box_outline_blank,
+          ),
+          onPressed: () {
+            setState(faults.toggle);
+            widget.onChanged();
+          },
+          child: Text('Сбой сервера (код ${FaultSwitch.failStatus})'),
         ),
-        color: faults.enabled ? Theme.of(context).colorScheme.error : null,
-        onPressed: () {
-          setState(faults.toggle);
-          widget.onChanged();
-        },
+        MenuItemButton(
+          leadingIcon: Icon(
+            faults.slow ? Icons.check_box : Icons.check_box_outline_blank,
+          ),
+          onPressed: () {
+            setState(faults.toggleSlow);
+            widget.onChanged();
+          },
+          child: Text('Медленный ответ (${FaultSwitch.delayMs} мс)'),
+        ),
+      ],
+      builder: (context, controller, _) => Tooltip(
+        message: 'Учебные переключатели сервера',
+        child: IconButton(
+          icon: Icon(active ? Icons.bug_report : Icons.bug_report_outlined),
+          color: active ? scheme.error : null,
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+        ),
       ),
     );
   }

@@ -50,10 +50,7 @@ class EmployeeDetailScreen extends StatelessWidget {
             DetailRow('Линия поддержки', '${employee.supportLine}'),
             DetailRow('Электронная почта', employee.email),
             DetailRow('Телефон', employee.phone),
-            DetailRow(
-              'Статус',
-              employee.isActive ? 'работает' : 'не работает',
-            ),
+            DetailRow('Статус', employee.isActive ? 'работает' : 'не работает'),
           ],
         ),
       ),
@@ -106,9 +103,8 @@ class EmployeeDetailScreen extends StatelessWidget {
         onPressed: () => context.go(
           Uri(
             path: '/tickets',
-            queryParameters: TicketQuery(
-              assigneeId: employee.id,
-            ).toQueryParameters(),
+            queryParameters: TicketQuery(assigneeId: employee.id)
+                .toQueryParameters(),
           ).toString(),
         ),
         icon: const Icon(Icons.list_alt),

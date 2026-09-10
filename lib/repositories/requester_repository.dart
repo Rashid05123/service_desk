@@ -10,12 +10,7 @@ import 'stored_repository.dart';
 
 /// Договор доступа к заявителям.
 abstract interface class RequesterRepository
-    implements CrudRepository<Requester, RequesterQuery> {
-  /// Действующие заявители — источник выпадающего списка в форме заявки.
-  List<Requester> get available;
-
-  int countByDepartment(int departmentId);
-}
+    implements CrudRepository<Requester, RequesterQuery> {}
 
 /// Хранилище заявителей. Уникальность проверяется по полям вложенной
 /// учётной записи — стороны связи один к одному.
@@ -58,13 +53,10 @@ class PersistentRequesterRepository extends StoredRepository<Requester>
     }
   }
 
-  @override
   List<Requester> get available => activeRows;
 
-  @override
-  int countByDepartment(int departmentId) => rows
-      .where((r) => !r.isDeleted && r.departmentId == departmentId)
-      .length;
+  int countByDepartment(int departmentId) =>
+      rows.where((r) => !r.isDeleted && r.departmentId == departmentId).length;
 
   @override
   Future<PageResult<Requester>> find(RequesterQuery query) async {

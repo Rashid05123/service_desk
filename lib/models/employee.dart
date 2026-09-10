@@ -28,6 +28,10 @@ class Employee implements Entity<Employee> {
   @override
   final DateTime? deletedAt;
 
+  /// Число заявок, в которых участвует запись. Приходит с сервера вместе
+  /// с ней и служит только для показа; в [toJson] не попадает.
+  final int ticketCount;
+
   const Employee({
     required this.id,
     required this.fullName,
@@ -39,6 +43,7 @@ class Employee implements Entity<Employee> {
     required this.categoryIds,
     required this.isActive,
     this.deletedAt,
+    this.ticketCount = 0,
   });
 
   bool get isDeleted => deletedAt != null;
@@ -110,12 +115,14 @@ class Employee implements Entity<Employee> {
     id: Json.asInt(json['id']),
     fullName: Json.asString(json['fullName']),
     position: Json.asString(json['position']),
-    departmentId: Json.asInt(json['departmentId']),
+    // Ссылка приходит развёрнутым объектом, а уходит числом.
+    departmentId: Json.refId(json['department'], json['departmentId']),
     email: Json.asString(json['email']),
     phone: Json.asString(json['phone']),
     supportLine: Json.asInt(json['supportLine'], 1),
-    categoryIds: Json.asIntList(json['categoryIds']),
+    categoryIds: Json.refIdList(json['categories'], json['categoryIds']),
     isActive: Json.asBool(json['isActive'], true),
     deletedAt: Json.asDateOrNull(json['deletedAt']),
+    ticketCount: Json.asInt(json['ticketCount']),
   );
 }

@@ -1,0 +1,960 @@
+{
+  "departments": [
+    {
+      "id": 1,
+      "name": "Отдел технической поддержки",
+      "code": "ITSUP",
+      "location": "Корпус А, каб. 104",
+      "phone": "+7 495 000-10-00",
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "name": "Отдел системного администрирования",
+      "code": "SYSADM",
+      "location": "Корпус А, каб. 110",
+      "phone": "+7 495 000-11-00",
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "name": "Отдел информационной безопасности",
+      "code": "INFSEC",
+      "location": "Корпус А, каб. 115",
+      "phone": "+7 495 000-12-00",
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "name": "Отдел разработки",
+      "code": "DEV",
+      "location": "Корпус Б, каб. 302",
+      "phone": "+7 495 000-13-00",
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "name": "Бухгалтерия",
+      "code": "ACC",
+      "location": "Корпус Б, каб. 201",
+      "phone": "+7 495 000-20-00",
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "name": "Отдел продаж",
+      "code": "SALES",
+      "location": "Корпус Б, каб. 210",
+      "phone": "+7 495 000-21-00",
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "name": "Отдел кадров",
+      "code": "HR",
+      "location": "Корпус Б, каб. 205",
+      "phone": "+7 495 000-22-00",
+      "deletedAt": null
+    },
+    {
+      "id": 8,
+      "name": "Юридический отдел",
+      "code": "LEGAL",
+      "location": "Корпус Б, каб. 208",
+      "phone": "+7 495 000-23-00",
+      "deletedAt": null
+    },
+    {
+      "id": 9,
+      "name": "Отдел маркетинга",
+      "code": "MRKT",
+      "location": "Корпус Б, каб. 215",
+      "phone": "+7 495 000-24-00",
+      "deletedAt": null
+    },
+    {
+      "id": 10,
+      "name": "Канцелярия",
+      "code": "OFFICE",
+      "location": "Корпус А, каб. 101",
+      "phone": "+7 495 000-25-00",
+      "deletedAt": null
+    },
+    {
+      "id": 11,
+      "name": "Склад",
+      "code": "STOCK",
+      "location": "Корпус В, помещ. 1",
+      "phone": "+7 495 000-26-00",
+      "deletedAt": null
+    },
+    {
+      "id": 12,
+      "name": "Руководство",
+      "code": "MGMT",
+      "location": "Корпус А, каб. 301",
+      "phone": "+7 495 000-27-00",
+      "deletedAt": null
+    },
+    {
+      "id": 13,
+      "name": "Отдел логистики",
+      "code": "LOG",
+      "location": "Корпус В, помещ. 4",
+      "phone": "+7 495 000-28-00",
+      "deletedAt": "2026-08-30T12:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Оборудование",
+      "description": "Персональные компьютеры, мониторы, периферия и расходные узлы.",
+      "slaHours": 24,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "name": "Программное обеспечение",
+      "description": "Установка, обновление и ошибки прикладных программ.",
+      "slaHours": 8,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "name": "Сеть и доступ в интернет",
+      "description": "Локальная сеть, общие папки, удалённый доступ, каналы связи.",
+      "slaHours": 4,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "name": "Учётные записи",
+      "description": "Доменные учётные записи, пароли, права доступа, электронная подпись.",
+      "slaHours": 2,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "name": "Печать и расходные материалы",
+      "description": "Принтеры, многофункциональные устройства, картриджи и бумага.",
+      "slaHours": 24,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "name": "Телефония",
+      "description": "Стационарные аппараты, внутренние номера, переадресация вызовов.",
+      "slaHours": 48,
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "name": "Мобильные устройства",
+      "description": "Служебные телефоны и планшеты. Направление закрыто.",
+      "slaHours": 48,
+      "isActive": false,
+      "deletedAt": "2026-08-30T12:00:00.000Z"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "fullName": "Абрамов Кирилл Сергеевич",
+      "position": "Специалист поддержки",
+      "departmentId": 1,
+      "email": "abramov@sd.local",
+      "phone": "+7 495 000-10-01",
+      "supportLine": 1,
+      "categoryIds": [
+        1,
+        2,
+        5
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "fullName": "Белова Ирина Павловна",
+      "position": "Старший специалист поддержки",
+      "departmentId": 1,
+      "email": "belova@sd.local",
+      "phone": "+7 495 000-10-02",
+      "supportLine": 2,
+      "categoryIds": [
+        2,
+        4
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "fullName": "Волков Денис Андреевич",
+      "position": "Системный администратор",
+      "departmentId": 2,
+      "email": "volkov@sd.local",
+      "phone": "+7 495 000-10-03",
+      "supportLine": 2,
+      "categoryIds": [
+        3,
+        4
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "fullName": "Гордеева Мария Ивановна",
+      "position": "Инженер технической поддержки",
+      "departmentId": 1,
+      "email": "gordeeva@sd.local",
+      "phone": "+7 495 000-10-04",
+      "supportLine": 1,
+      "categoryIds": [
+        1,
+        5,
+        6
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "fullName": "Дорохов Артём Витальевич",
+      "position": "Ведущий системный администратор",
+      "departmentId": 2,
+      "email": "dorohov@sd.local",
+      "phone": "+7 495 000-10-05",
+      "supportLine": 3,
+      "categoryIds": [
+        1,
+        2,
+        3
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "fullName": "Ершова Наталья Олеговна",
+      "position": "Специалист по информационной безопасности",
+      "departmentId": 3,
+      "email": "ershova@sd.local",
+      "phone": "+7 495 000-10-06",
+      "supportLine": 3,
+      "categoryIds": [
+        4
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "fullName": "Жуков Павел Романович",
+      "position": "Специалист поддержки",
+      "departmentId": 1,
+      "email": "zhukov@sd.local",
+      "phone": "+7 495 000-10-07",
+      "supportLine": 1,
+      "categoryIds": [
+        1,
+        6
+      ],
+      "isActive": false,
+      "deletedAt": null
+    },
+    {
+      "id": 8,
+      "fullName": "Зайцева Ольга Дмитриевна",
+      "position": "Аналитик службы поддержки",
+      "departmentId": 1,
+      "email": "zaytseva@sd.local",
+      "phone": "+7 495 000-10-08",
+      "supportLine": 2,
+      "categoryIds": [
+        2,
+        5,
+        6
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 9,
+      "fullName": "Ильин Максим Юрьевич",
+      "position": "Инженер сопровождения",
+      "departmentId": 4,
+      "email": "ilin@sd.local",
+      "phone": "+7 495 000-10-09",
+      "supportLine": 3,
+      "categoryIds": [
+        2,
+        3
+      ],
+      "isActive": true,
+      "deletedAt": null
+    },
+    {
+      "id": 10,
+      "fullName": "Карпова Светлана Львовна",
+      "position": "Диспетчер службы поддержки",
+      "departmentId": 1,
+      "email": "karpova@sd.local",
+      "phone": "+7 495 000-10-10",
+      "supportLine": 1,
+      "categoryIds": [
+        1,
+        4,
+        5
+      ],
+      "isActive": true,
+      "deletedAt": null
+    }
+  ],
+  "requesters": [
+    {
+      "id": 1,
+      "fullName": "Семёнов Артём Владимирович",
+      "position": "Бухгалтер",
+      "departmentId": 5,
+      "account": {
+        "login": "semenov.av",
+        "email": "semenov@corp.local",
+        "phone": "+7 495 000-30-11",
+        "office": "Корпус Б, каб. 201",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "fullName": "Никитина Елена Павловна",
+      "position": "Главный бухгалтер",
+      "departmentId": 5,
+      "account": {
+        "login": "nikitina.ep",
+        "email": "nikitina@corp.local",
+        "phone": "+7 495 000-30-12",
+        "office": "Корпус Б, каб. 202",
+        "isBlocked": false
+      },
+      "note": "Право подписи, электронная подпись на токене.",
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "fullName": "Орлов Дмитрий Сергеевич",
+      "position": "Менеджер по продажам",
+      "departmentId": 6,
+      "account": {
+        "login": "orlov.ds",
+        "email": "orlov@corp.local",
+        "phone": "+7 495 000-30-13",
+        "office": "Корпус Б, каб. 210",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "fullName": "Кузьмина Вера Анатольевна",
+      "position": "Старший менеджер по продажам",
+      "departmentId": 6,
+      "account": {
+        "login": "kuzmina.va",
+        "email": "kuzmina@corp.local",
+        "phone": "+7 495 000-30-14",
+        "office": "Корпус Б, каб. 210",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "fullName": "Тимофеева Людмила Николаевна",
+      "position": "Делопроизводитель",
+      "departmentId": 10,
+      "account": {
+        "login": "timofeeva.ln",
+        "email": "timofeeva@corp.local",
+        "phone": "+7 495 000-30-15",
+        "office": "Корпус А, каб. 101",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "fullName": "Лебедев Игорь Иванович",
+      "position": "Заместитель директора",
+      "departmentId": 12,
+      "account": {
+        "login": "lebedev.ii",
+        "email": "lebedev@corp.local",
+        "phone": "+7 495 000-30-16",
+        "office": "Корпус А, каб. 301",
+        "isBlocked": false
+      },
+      "note": "Обращения обрабатываются в первую очередь.",
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "fullName": "Фомина Анна Робертовна",
+      "position": "Специалист по кадрам",
+      "departmentId": 7,
+      "account": {
+        "login": "fomina.ar",
+        "email": "fomina@corp.local",
+        "phone": "+7 495 000-30-17",
+        "office": "Корпус Б, каб. 205",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 8,
+      "fullName": "Григорьев Пётр Петрович",
+      "position": "Кладовщик",
+      "departmentId": 11,
+      "account": {
+        "login": "grigorev.pp",
+        "email": "grigorev@corp.local",
+        "phone": "+7 495 000-30-18",
+        "office": "Корпус В, помещ. 1",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 9,
+      "fullName": "Соколова Марина Викторовна",
+      "position": "Юрисконсульт",
+      "departmentId": 8,
+      "account": {
+        "login": "sokolova.mv",
+        "email": "sokolova@corp.local",
+        "phone": "+7 495 000-30-19",
+        "office": "Корпус Б, каб. 208",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 10,
+      "fullName": "Данилов Константин Олегович",
+      "position": "Инженер серверного оборудования",
+      "departmentId": 2,
+      "account": {
+        "login": "danilov.ko",
+        "email": "danilov@corp.local",
+        "phone": "+7 495 000-30-20",
+        "office": "Корпус А, каб. 112",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 11,
+      "fullName": "Медведева Юлия Сергеевна",
+      "position": "Маркетолог",
+      "departmentId": 9,
+      "account": {
+        "login": "medvedeva.ys",
+        "email": "medvedeva@corp.local",
+        "phone": "+7 495 000-30-21",
+        "office": "Корпус Б, каб. 215",
+        "isBlocked": false
+      },
+      "note": "",
+      "deletedAt": null
+    },
+    {
+      "id": 12,
+      "fullName": "Захаров Роман Тимурович",
+      "position": "Программист",
+      "departmentId": 4,
+      "account": {
+        "login": "zaharov.rt",
+        "email": "zaharov@corp.local",
+        "phone": "+7 495 000-30-22",
+        "office": "Корпус Б, каб. 302",
+        "isBlocked": true
+      },
+      "note": "Учётная запись заблокирована до окончания проверки.",
+      "deletedAt": null
+    },
+    {
+      "id": 13,
+      "fullName": "Хохлова Ирина Львовна",
+      "position": "Специалист",
+      "departmentId": 9,
+      "account": {
+        "login": "hohlova.il",
+        "email": "hohlova@corp.local",
+        "phone": "+7 495 000-30-23",
+        "office": "Корпус Б, каб. 216",
+        "isBlocked": false
+      },
+      "note": "Дубль карточки, создан по ошибке.",
+      "deletedAt": "2026-09-01T10:00:00.000Z"
+    }
+  ],
+  "tickets": [
+    {
+      "id": 1,
+      "number": "SD-000001",
+      "subject": "Не включается системный блок",
+      "description": "При нажатии кнопки питания индикаторы не загораются, вентиляторы не запускаются. Розетка исправна, проверено другим устройством.",
+      "categoryId": 1,
+      "priority": "high",
+      "status": "in_progress",
+      "assigneeId": 1,
+      "coworkerIds": [
+        4,
+        5
+      ],
+      "requesterId": 1,
+      "createdAt": "2026-08-03T09:12:00.000",
+      "dueAt": "2026-08-05T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "number": "SD-000002",
+      "subject": "Не открывается 1С: Предприятие",
+      "description": "При запуске появляется сообщение об ошибке соединения с сервером приложений. Проблема у всех сотрудников отдела.",
+      "categoryId": 2,
+      "priority": "critical",
+      "status": "in_progress",
+      "assigneeId": 5,
+      "coworkerIds": [
+        1,
+        2
+      ],
+      "requesterId": 2,
+      "createdAt": "2026-08-04T10:40:00.000",
+      "dueAt": "2026-08-04T14:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "number": "SD-000003",
+      "subject": "Забыт пароль от доменной учётной записи",
+      "description": "Учётная запись заблокирована после нескольких попыток входа.",
+      "categoryId": 4,
+      "priority": "normal",
+      "status": "closed",
+      "assigneeId": 10,
+      "coworkerIds": [
+        2
+      ],
+      "requesterId": 3,
+      "createdAt": "2026-08-04T11:05:00.000",
+      "dueAt": "2026-08-05T11:05:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "number": "SD-000004",
+      "subject": "Нет доступа к сетевой папке отдела",
+      "description": "Папка \\\\fs01\\sales перестала открываться после смены должности сотрудника. Требуется проверить права группы.",
+      "categoryId": 3,
+      "priority": "high",
+      "status": "waiting",
+      "assigneeId": 3,
+      "coworkerIds": [
+        5,
+        9
+      ],
+      "requesterId": 4,
+      "createdAt": "2026-08-05T09:30:00.000",
+      "dueAt": "2026-08-06T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "number": "SD-000005",
+      "subject": "Принтер печатает с полосами",
+      "description": "На всех документах вертикальная светлая полоса. Картридж заменён две недели назад.",
+      "categoryId": 5,
+      "priority": "low",
+      "status": "resolved",
+      "assigneeId": 4,
+      "coworkerIds": [],
+      "requesterId": 5,
+      "createdAt": "2026-08-05T14:20:00.000",
+      "dueAt": "2026-08-12T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "number": "SD-000006",
+      "subject": "Медленно работает интернет в переговорной",
+      "description": "Видеоконференции прерываются, скорость по замеру около 2 Мбит/с при тарифе 100 Мбит/с.",
+      "categoryId": 3,
+      "priority": "normal",
+      "status": "in_progress",
+      "assigneeId": 3,
+      "coworkerIds": [
+        5
+      ],
+      "requesterId": 6,
+      "createdAt": "2026-08-06T08:55:00.000",
+      "dueAt": "2026-08-08T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "number": "SD-000007",
+      "subject": "Установить пакет офисных программ на новое рабочее место",
+      "description": "Новый сотрудник выходит 10 августа, рабочее место подготовлено.",
+      "categoryId": 2,
+      "priority": "normal",
+      "status": "closed",
+      "assigneeId": 1,
+      "coworkerIds": [
+        2
+      ],
+      "requesterId": 7,
+      "createdAt": "2026-08-06T16:10:00.000",
+      "dueAt": "2026-08-10T12:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 8,
+      "number": "SD-000008",
+      "subject": "Не работает служебный телефон",
+      "description": "Аппарат не регистрируется на АТС, на экране надпись «Нет линии».",
+      "categoryId": 6,
+      "priority": "normal",
+      "status": "new",
+      "assigneeId": null,
+      "coworkerIds": [
+        4
+      ],
+      "requesterId": 8,
+      "createdAt": "2026-08-07T09:05:00.000",
+      "dueAt": "2026-08-09T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 9,
+      "number": "SD-000009",
+      "subject": "Подозрительное письмо с вложением",
+      "description": "Пришло письмо от неизвестного отправителя с архивом. Вложение не открывали, письмо не удаляли.",
+      "categoryId": 4,
+      "priority": "critical",
+      "status": "resolved",
+      "assigneeId": 6,
+      "coworkerIds": [
+        2,
+        3
+      ],
+      "requesterId": 9,
+      "createdAt": "2026-08-07T11:45:00.000",
+      "dueAt": "2026-08-07T15:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 10,
+      "number": "SD-000010",
+      "subject": "Заменить батарею в источнике бесперебойного питания",
+      "description": "ИБП сигнализирует об износе батареи, время автономии — 2 минуты.",
+      "categoryId": 1,
+      "priority": "low",
+      "status": "waiting",
+      "assigneeId": 5,
+      "coworkerIds": [],
+      "requesterId": 10,
+      "createdAt": "2026-08-10T10:00:00.000",
+      "dueAt": "2026-08-24T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 11,
+      "number": "SD-000011",
+      "subject": "Не приходит почта на корпоративный ящик",
+      "description": "Исходящие письма уходят, входящие не поступают с утра. У коллег из того же отдела почта работает.",
+      "categoryId": 2,
+      "priority": "high",
+      "status": "in_progress",
+      "assigneeId": 2,
+      "coworkerIds": [
+        1,
+        5
+      ],
+      "requesterId": 11,
+      "createdAt": "2026-08-11T09:20:00.000",
+      "dueAt": "2026-08-12T13:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 12,
+      "number": "SD-000012",
+      "subject": "Настроить доступ к корпоративному порталу извне",
+      "description": "Сотрудник переведён на удалённую работу, нужен доступ по VPN.",
+      "categoryId": 3,
+      "priority": "normal",
+      "status": "new",
+      "assigneeId": null,
+      "coworkerIds": [
+        3
+      ],
+      "requesterId": 12,
+      "createdAt": "2026-08-12T15:30:00.000",
+      "dueAt": "2026-08-15T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 13,
+      "number": "SD-000013",
+      "subject": "Заканчивается тонер в отделе кадров",
+      "description": "Нужен картридж для принтера HP LaserJet, остаток около 5%.",
+      "categoryId": 5,
+      "priority": "low",
+      "status": "closed",
+      "assigneeId": 10,
+      "coworkerIds": [],
+      "requesterId": 7,
+      "createdAt": "2026-08-13T12:15:00.000",
+      "dueAt": "2026-08-20T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 14,
+      "number": "SD-000014",
+      "subject": "Ошибка при выгрузке отчёта в формате Excel",
+      "description": "При выгрузке отчёта по продажам появляется сообщение «Файл повреждён». Отчёт за предыдущий месяц выгружается нормально.",
+      "categoryId": 2,
+      "priority": "high",
+      "status": "waiting",
+      "assigneeId": 9,
+      "coworkerIds": [
+        1,
+        2
+      ],
+      "requesterId": 4,
+      "createdAt": "2026-08-14T10:05:00.000",
+      "dueAt": "2026-08-17T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 15,
+      "number": "SD-000015",
+      "subject": "Не распознаётся электронная подпись",
+      "description": "Токен определяется системой, но сертификат не виден в списке.",
+      "categoryId": 4,
+      "priority": "high",
+      "status": "in_progress",
+      "assigneeId": 6,
+      "coworkerIds": [
+        2,
+        3
+      ],
+      "requesterId": 2,
+      "createdAt": "2026-08-17T09:40:00.000",
+      "dueAt": "2026-08-18T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 16,
+      "number": "SD-000016",
+      "subject": "Требуется второй монитор для рабочего места",
+      "description": "Заявка на выдачу оборудования со склада, согласована руководителем.",
+      "categoryId": 1,
+      "priority": "low",
+      "status": "new",
+      "assigneeId": null,
+      "coworkerIds": [],
+      "requesterId": 12,
+      "createdAt": "2026-08-18T11:00:00.000",
+      "dueAt": "2026-09-01T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 17,
+      "number": "SD-000017",
+      "subject": "Перестал работать сканер штрихкодов",
+      "description": "После перезагрузки компьютера устройство не определяется.",
+      "categoryId": 1,
+      "priority": "normal",
+      "status": "resolved",
+      "assigneeId": 4,
+      "coworkerIds": [
+        1
+      ],
+      "requesterId": 8,
+      "createdAt": "2026-08-19T08:30:00.000",
+      "dueAt": "2026-08-21T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 18,
+      "number": "SD-000018",
+      "subject": "Настроить переадресацию звонков",
+      "description": "Требуется переадресация с внутреннего номера 204 на мобильный.",
+      "categoryId": 6,
+      "priority": "low",
+      "status": "closed",
+      "assigneeId": 8,
+      "coworkerIds": [],
+      "requesterId": 6,
+      "createdAt": "2026-08-20T13:25:00.000",
+      "dueAt": "2026-08-24T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 19,
+      "number": "SD-000019",
+      "subject": "Компьютер самопроизвольно перезагружается",
+      "description": "Перезагрузки происходят под нагрузкой, примерно раз в час. В журнале событий — критическая ошибка Kernel-Power.",
+      "categoryId": 1,
+      "priority": "critical",
+      "status": "in_progress",
+      "assigneeId": 5,
+      "coworkerIds": [
+        1,
+        4
+      ],
+      "requesterId": 11,
+      "createdAt": "2026-08-21T09:15:00.000",
+      "dueAt": "2026-08-21T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 20,
+      "number": "SD-000020",
+      "subject": "Восстановить удалённый файл из общей папки",
+      "description": "Файл договора удалён по ошибке 20 августа, нужен из резервной копии.",
+      "categoryId": 3,
+      "priority": "high",
+      "status": "resolved",
+      "assigneeId": 3,
+      "coworkerIds": [
+        5,
+        9
+      ],
+      "requesterId": 9,
+      "createdAt": "2026-08-24T10:50:00.000",
+      "dueAt": "2026-08-25T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 21,
+      "number": "SD-000021",
+      "subject": "Не устанавливается обновление операционной системы",
+      "description": "Обновление откатывается с кодом ошибки 0x800f0922.",
+      "categoryId": 2,
+      "priority": "normal",
+      "status": "new",
+      "assigneeId": null,
+      "coworkerIds": [
+        1
+      ],
+      "requesterId": 3,
+      "createdAt": "2026-08-25T14:05:00.000",
+      "dueAt": "2026-08-28T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 22,
+      "number": "SD-000022",
+      "subject": "Заблокировать учётную запись уволенного сотрудника",
+      "description": "Последний рабочий день — 26 августа, требуется блокировка всех доступов.",
+      "categoryId": 4,
+      "priority": "critical",
+      "status": "closed",
+      "assigneeId": 6,
+      "coworkerIds": [
+        2,
+        3
+      ],
+      "requesterId": 7,
+      "createdAt": "2026-08-26T09:00:00.000",
+      "dueAt": "2026-08-26T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 23,
+      "number": "SD-000023",
+      "subject": "Перенести рабочее место в другой кабинет",
+      "description": "Переезд 3 сентября: компьютер, монитор, телефон, сетевая розетка.",
+      "categoryId": 1,
+      "priority": "normal",
+      "status": "waiting",
+      "assigneeId": 1,
+      "coworkerIds": [
+        4
+      ],
+      "requesterId": 5,
+      "createdAt": "2026-08-27T16:30:00.000",
+      "dueAt": "2026-09-03T12:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 24,
+      "number": "SD-000024",
+      "subject": "Не отображается общий календарь отдела",
+      "description": "Календарь пропал из списка после смены пароля.",
+      "categoryId": 2,
+      "priority": "low",
+      "status": "new",
+      "assigneeId": null,
+      "coworkerIds": [],
+      "requesterId": 1,
+      "createdAt": "2026-08-28T11:20:00.000",
+      "dueAt": "2026-09-04T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 25,
+      "number": "SD-000025",
+      "subject": "Настроить резервное копирование базы данных",
+      "description": "Требуется ежедневная копия в 23:00 с хранением 14 дней.",
+      "categoryId": 3,
+      "priority": "high",
+      "status": "in_progress",
+      "assigneeId": 9,
+      "coworkerIds": [
+        3,
+        5
+      ],
+      "requesterId": 10,
+      "createdAt": "2026-08-31T10:10:00.000",
+      "dueAt": "2026-09-07T18:00:00.000",
+      "deletedAt": null
+    },
+    {
+      "id": 26,
+      "number": "SD-000026",
+      "subject": "Дубль заявки о замене мыши",
+      "description": "Создана повторно тем же сотрудником, закрыта как дубликат.",
+      "categoryId": 1,
+      "priority": "low",
+      "status": "closed",
+      "assigneeId": 10,
+      "coworkerIds": [],
+      "requesterId": 3,
+      "createdAt": "2026-09-01T09:45:00.000",
+      "dueAt": "2026-09-08T18:00:00.000",
+      "deletedAt": "2026-09-01T10:05:00.000"
+    }
+  ]
+}

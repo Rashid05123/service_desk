@@ -111,8 +111,7 @@ void main() {
       expect(page.total, 3);
     });
 
-    test('сортировка по убыванию обратна сортировке по возрастанию',
-        () async {
+    test('сортировка по убыванию обратна сортировке по возрастанию', () async {
       final asc = await repository.find(
         const TicketQuery(sortField: 'number', sortAscending: true, size: 50),
       );
@@ -142,16 +141,16 @@ void main() {
       expect(first.page, 1);
       expect(second.page, 2);
       expect(
-        first.items.map((t) => t.id).toSet().intersection(
-          second.items.map((t) => t.id).toSet(),
-        ),
+        first.items
+            .map((t) => t.id)
+            .toSet()
+            .intersection(second.items.map((t) => t.id).toSet()),
         isEmpty,
       );
       expect(first.total, second.total);
     });
 
-    test('страница за пределами выборки пуста, но не роняет запрос',
-        () async {
+    test('страница за пределами выборки пуста, но не роняет запрос', () async {
       final page = await repository.find(const TicketQuery(page: 99));
 
       expect(page.items, isEmpty);
@@ -194,25 +193,27 @@ void main() {
     });
 
     test('следующий номер не занят', () async {
-      final next = repository.nextNumber();
+      final next = await repository.nextNumber();
 
       expect(repository.rows.any((t) => t.number == next), isFalse);
     });
   });
 
   group('удаление', () {
-    test('логическое удаление убирает запись из выборки, но не из хранилища',
-        () async {
-      final before = await repository.find(const TicketQuery(size: 50));
-      await repository.softDelete(1);
-      final after = await repository.find(const TicketQuery(size: 50));
-      final withDeleted = await repository.find(
-        const TicketQuery(size: 50, includeDeleted: true),
-      );
+    test(
+      'логическое удаление убирает запись из выборки, но не из хранилища',
+      () async {
+        final before = await repository.find(const TicketQuery(size: 50));
+        await repository.softDelete(1);
+        final after = await repository.find(const TicketQuery(size: 50));
+        final withDeleted = await repository.find(
+          const TicketQuery(size: 50, includeDeleted: true),
+        );
 
-      expect(after.total, before.total - 1);
-      expect(withDeleted.items.any((t) => t.id == 1), isTrue);
-    });
+        expect(after.total, before.total - 1);
+        expect(withDeleted.items.any((t) => t.id == 1), isTrue);
+      },
+    );
 
     test('восстановление возвращает запись в выборку', () async {
       await repository.softDelete(1);
@@ -232,13 +233,15 @@ void main() {
       expect(await repository.findById(1), isNull);
     });
 
-    test('множественное удаление считает только фактически удалённые',
-        () async {
-      // Заявка 26 удалена в начальном наборе, второй раз не считается.
-      final deleted = await repository.deleteMany([1, 2, 26]);
+    test(
+      'множественное удаление считает только фактически удалённые',
+      () async {
+        // Заявка 26 удалена в начальном наборе, второй раз не считается.
+        final deleted = await repository.deleteMany([1, 2, 26]);
 
-      expect(deleted, 2);
-    });
+        expect(deleted, 2);
+      },
+    );
   });
 
   test('включённый учебный сбой роняет любой запрос', () async {

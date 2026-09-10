@@ -10,14 +10,7 @@ import 'stored_repository.dart';
 
 /// Договор доступа к сотрудникам поддержки.
 abstract interface class EmployeeRepository
-    implements CrudRepository<Employee, EmployeeQuery> {
-  /// Все действующие сотрудники — источник выпадающих списков форм.
-  List<Employee> get available;
-
-  int countByDepartment(int departmentId);
-
-  int countByCategory(int categoryId);
-}
+    implements CrudRepository<Employee, EmployeeQuery> {}
 
 /// Хранилище сотрудников. Отличается от заявок только составом полей,
 /// поэтому вся общая часть унаследована от StoredRepository.
@@ -50,15 +43,11 @@ class PersistentEmployeeRepository extends StoredRepository<Employee>
     }
   }
 
-  @override
   List<Employee> get available => activeRows;
 
-  @override
-  int countByDepartment(int departmentId) => rows
-      .where((e) => !e.isDeleted && e.departmentId == departmentId)
-      .length;
+  int countByDepartment(int departmentId) =>
+      rows.where((e) => !e.isDeleted && e.departmentId == departmentId).length;
 
-  @override
   int countByCategory(int categoryId) => rows
       .where((e) => !e.isDeleted && e.categoryIds.contains(categoryId))
       .length;

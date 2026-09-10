@@ -36,8 +36,7 @@ class PrefsCollectionStore implements CollectionStore {
 
   /// Ключ коллекции содержит версию: смена версии сама уводит приложение
   /// на чистые данные, ручная чистка localStorage не нужна.
-  static String _keyOf(String collection) =>
-      'sd.v$schemaVersion.$collection';
+  static String _keyOf(String collection) => 'sd.v$schemaVersion.$collection';
 
   String? _notice;
 
@@ -76,7 +75,9 @@ class PrefsCollectionStore implements CollectionStore {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return null;
-      return decoded.whereType<Map>().map((e) => e.cast<String, dynamic>())
+      return decoded
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
           .toList();
     } catch (_) {
       // Данные испорчены — начинаем заново, но не роняем приложение.
@@ -88,10 +89,7 @@ class PrefsCollectionStore implements CollectionStore {
   }
 
   @override
-  Future<void> write(
-    String collection,
-    List<Map<String, dynamic>> rows,
-  ) async {
+  Future<void> write(String collection, List<Map<String, dynamic>> rows) async {
     await _prefs.setString(_keyOf(collection), jsonEncode(rows));
   }
 }
@@ -105,10 +103,7 @@ class MemoryCollectionStore implements CollectionStore {
   List<Map<String, dynamic>>? read(String collection) => _data[collection];
 
   @override
-  Future<void> write(
-    String collection,
-    List<Map<String, dynamic>> rows,
-  ) async {
+  Future<void> write(String collection, List<Map<String, dynamic>> rows) async {
     _data[collection] = rows;
   }
 

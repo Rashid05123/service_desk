@@ -29,6 +29,7 @@ import '../screens/ticket_detail_screen.dart';
 import '../screens/ticket_form_screen.dart';
 import '../screens/ticket_list_screen.dart';
 import '../state/detail_notifier.dart';
+import '../state/reference_data_notifier.dart';
 import '../widgets/app_shell.dart';
 
 /// Схема маршрутов. У каждой сущности одинаковый набор адресов:
@@ -118,7 +119,10 @@ List<RouteBase> _entityRoutes<T>({
         // Репозиторий берётся из провайдеров и передаётся в notifier.
         return ChangeNotifierProvider<DetailNotifier<T>>(
           key: ValueKey('$name-$id'),
-          create: (context) => DetailNotifier<T>(loader(context))..load(id),
+          create: (context) => DetailNotifier<T>(
+            loader(context),
+            prepare: context.read<ReferenceDataNotifier>().ensureLoaded,
+          )..load(id),
           child: detail,
         );
       },

@@ -19,32 +19,47 @@ import '../widgets/form/form_loader.dart';
 /// Здесь собраны все три вида связей: категория, исполнитель и заявитель —
 /// многие к одному (выпадающие списки), соисполнители — многие ко многим
 /// (множественный выбор).
-class TicketFormScreen extends StatelessWidget {
+class TicketFormScreen extends StatefulWidget {
   const TicketFormScreen({super.key, this.id});
 
   final int? id;
 
-  bool get isEditing => id != null;
+  @override
+  State<TicketFormScreen> createState() => _TicketFormScreenState();
+}
+
+class _TicketFormScreenState extends State<TicketFormScreen> {
+  /// Свободный регистрационный номер. Запрашивается у хранилища до
+  /// построения формы: в ПР3 это был синхронный вызов, но по сети
+  /// подставить номер в поле, минуя ожидание ответа, нельзя.
+  String? _suggestedNumber;
 
   @override
   Widget build(BuildContext context) {
     final repository = context.read<TicketRepository>();
 
     return FormLoader<Ticket>(
-      id: id,
+      id: widget.id,
       load: repository.findById,
+      prepare: widget.id != null
+          ? null
+          : () async => _suggestedNumber = await repository.nextNumber(),
       notFoundTitle: 'Заявка не найдена',
       notFoundDescription: 'Изменить можно только существующую запись.',
-      builder: (context, ticket) => _TicketFormBody(ticket: ticket),
+      builder: (context, ticket) =>
+          _TicketFormBody(ticket: ticket, suggestedNumber: _suggestedNumber),
     );
   }
 }
 
 class _TicketFormBody extends StatelessWidget {
-  const _TicketFormBody({required this.ticket});
+  const _TicketFormBody({required this.ticket, this.suggestedNumber});
 
   /// null — создание новой заявки.
   final Ticket? ticket;
+
+  /// Номер, предложенный хранилищем для новой заявки.
+  final String? suggestedNumber;
 
   bool get isEditing => ticket != null;
 
@@ -63,7 +78,7 @@ class _TicketFormBody extends StatelessWidget {
     final now = DateTime.now();
 
     final initialValues = <String, dynamic>{
-      'number': ticket?.number ?? repository.nextNumber(),
+      'number': ticket?.number ?? suggestedNumber ?? '',
       'subject': ticket?.subject ?? '',
       'description': ticket?.description ?? '',
       'categoryId': ticket?.categoryId,
@@ -91,9 +106,9 @@ class _TicketFormBody extends StatelessWidget {
         } else {
           await repository.create(saved);
         }
-        // Справочники и список читают те же репозитории, поэтому им
-        // достаточно сообщить об изменении.
-        reference.refresh();
+        // Состав заявок влияет на счётчики справочников, поэтому кэш
+        // помечается устаревшим: следующий экран перечитает его сам.
+        reference.invalidate();
         await list.load();
         if (context.mounted) context.go(listUri());
       },

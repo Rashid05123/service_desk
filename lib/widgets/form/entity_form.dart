@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/api_exceptions.dart';
 import '../../core/breakpoints.dart';
 import '../../core/exceptions.dart';
 import '../../core/formatting.dart';
@@ -134,6 +135,20 @@ class EntityFormState extends State<EntityForm> {
     }
   }
 
+  /// Имена полей формы, включая вложенные: по ним видно, есть ли куда
+  /// показать ошибку, пришедшую с сервера.
+  Set<String> get _fieldNames =>
+      _leafFields(widget.fields).map((f) => f.name).toSet();
+
+  void _showFailure(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.error,
+        content: Text(message),
+      ),
+    );
+  }
+
   Future<void> submit() async {
     // Снимаем фокус: иначе последнее поле остаётся с курсором, а на web
     // это мешает увидеть сообщение под ним.
@@ -146,20 +161,40 @@ class EntityFormState extends State<EntityForm> {
       await widget.onSubmit(_values);
       // Запись сохранена — уходить со страницы можно без вопросов.
       if (mounted) _setDirty(false);
-    } on UniqueConstraintException catch (e) {
+    } on ValidationException catch (e) {
+      // Проверка сервера с кодом 422. Ключи совпадают с именами полей
+      // формы, включая вложенные («account.login»), поэтому ошибки
+      // раскладываются по полям без сопоставления вручную.
       if (!mounted) return;
-      setState(() => _storageErrors[e.field] = e.message);
-      // Повторная проверка нужна, чтобы ошибка появилась под полем
+      setState(() => _storageErrors.addAll(e.errors));
+      // Повторная проверка нужна, чтобы ошибки появились под полями
       // сразу, а не после следующего нажатия.
       _formKey.currentState!.validate();
+      // Ошибка, для которой поля на форме нет — например, нарушено
+      // правило, связывающее два значения. Иначе она осталась бы
+      // невидимой.
+      final orphan = e.errors.keys
+          .where((key) => !_fieldNames.contains(key))
+          .toList();
+      if (orphan.isNotEmpty) {
+        _showFailure(e.errors[orphan.first]!);
+      }
+    } on UniqueConstraintException catch (e) {
+      // То же самое от локального хранилища: имя поля в исключении.
+      if (!mounted) return;
+      setState(() => _storageErrors[e.field] = e.message);
+      _formKey.currentState!.validate();
+    } on ConflictException catch (e) {
+      // Код 409: значения полей верны, но операция нарушила бы
+      // целостность. Под конкретным полем такое не покажешь.
+      if (!mounted) return;
+      _showFailure(e.message);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showFailure(e.message);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Theme.of(context).colorScheme.error,
-          content: Text('Не удалось сохранить: $e'),
-        ),
-      );
+      _showFailure('Не удалось сохранить: $e');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

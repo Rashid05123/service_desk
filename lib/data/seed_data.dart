@@ -115,7 +115,8 @@ final List<TicketCategory> seedCategories = [
   TicketCategory(
     id: 1,
     name: 'Оборудование',
-    description: 'Персональные компьютеры, мониторы, периферия и расходные узлы.',
+    description:
+        'Персональные компьютеры, мониторы, периферия и расходные узлы.',
     slaHours: 24,
     isActive: true,
   ),
@@ -136,21 +137,24 @@ final List<TicketCategory> seedCategories = [
   TicketCategory(
     id: 4,
     name: 'Учётные записи',
-    description: 'Доменные учётные записи, пароли, права доступа, электронная подпись.',
+    description:
+        'Доменные учётные записи, пароли, права доступа, электронная подпись.',
     slaHours: 2,
     isActive: true,
   ),
   TicketCategory(
     id: 5,
     name: 'Печать и расходные материалы',
-    description: 'Принтеры, многофункциональные устройства, картриджи и бумага.',
+    description:
+        'Принтеры, многофункциональные устройства, картриджи и бумага.',
     slaHours: 24,
     isActive: true,
   ),
   TicketCategory(
     id: 6,
     name: 'Телефония',
-    description: 'Стационарные аппараты, внутренние номера, переадресация вызовов.',
+    description:
+        'Стационарные аппараты, внутренние номера, переадресация вызовов.',
     slaHours: 48,
     isActive: true,
   ),
