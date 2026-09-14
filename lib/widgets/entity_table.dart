@@ -13,11 +13,21 @@ class TableColumnSpec<T> {
 
   final Widget Function(BuildContext context, T item) build;
 
+  /// Наименьшая ширина области таблицы, при которой колонка показывается.
+  /// null — колонка видна всегда.
+  ///
+  /// На ноутбуке 1280 рядом с раскрытой навигацией под таблицу остаётся
+  /// около 1070 пикселей, а все колонки заявок занимают больше. Лучше
+  /// спрятать второстепенные колонки — они есть в карточке заявки, —
+  /// чем заставлять прокручивать каждую строку вбок до кнопок действий.
+  final double? minTableWidth;
+
   const TableColumnSpec({
     required this.label,
     required this.build,
     this.sortField,
     this.numeric = false,
+    this.minTableWidth,
   });
 }
 
@@ -90,8 +100,21 @@ class _EntityTableState<T> extends State<EntityTable<T>> {
 
   @override
   Widget build(BuildContext context) {
+    // Ширина берётся из LayoutBuilder, а не из размера окна: боковая
+    // полоса навигации занимает часть ширины.
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildTable(context, constraints),
+    );
+  }
+
+  Widget _buildTable(BuildContext context, BoxConstraints constraints) {
     final theme = Theme.of(context);
-    final columns = widget.columns;
+    final columns = [
+      for (final column in widget.columns)
+        if (column.minTableWidth == null ||
+            constraints.maxWidth >= column.minTableWidth!)
+          column,
+    ];
     final items = widget.items;
     final idOf = widget.idOf;
     final selected = widget.selected;
@@ -168,42 +191,39 @@ class _EntityTableState<T> extends State<EntityTable<T>> {
     // DataTable не прокручивается сам и не сжимается, поэтому прокрутка
     // по обеим осям. Горизонтальная область внешняя: её полоса прокрутки
     // остаётся прижатой к низу окна и видна всегда, а не уезжает вместе
-    // с содержимым. Ширина берётся из LayoutBuilder, а не из размера
-    // окна: боковая полоса навигации занимает часть ширины.
-    return LayoutBuilder(
-      builder: (context, constraints) => Scrollbar(
+    // с содержимым.
+    return Scrollbar(
+      controller: _horizontal,
+      thumbVisibility: true,
+      trackVisibility: true,
+      scrollbarOrientation: ScrollbarOrientation.bottom,
+      child: SingleChildScrollView(
         controller: _horizontal,
-        thumbVisibility: true,
-        trackVisibility: true,
-        scrollbarOrientation: ScrollbarOrientation.bottom,
-        child: SingleChildScrollView(
-          controller: _horizontal,
-          scrollDirection: Axis.horizontal,
-          // Отступ снизу оставляет место самой полосе прокрутки, иначе
-          // она легла бы поверх последней строки.
-          padding: const EdgeInsets.only(bottom: 14),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: Scrollbar(
+        scrollDirection: Axis.horizontal,
+        // Отступ снизу оставляет место самой полосе прокрутки, иначе
+        // она легла бы поверх последней строки.
+        padding: const EdgeInsets.only(bottom: 14),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: Scrollbar(
+            controller: _vertical,
+            child: SingleChildScrollView(
               controller: _vertical,
-              child: SingleChildScrollView(
-                controller: _vertical,
-                child: DataTable(
-                  columns: dataColumns,
-                  rows: rows,
-                  sortColumnIndex: sortColumnIndex,
-                  sortAscending: sortAscending,
-                  showCheckboxColumn: selectable,
-                  onSelectAll: onToggleSelectAll == null
-                      ? null
-                      : (_) => onToggleSelectAll(),
-                  headingRowColor: WidgetStatePropertyAll(
-                    theme.colorScheme.surfaceContainerHigh,
-                  ),
-                  columnSpacing: 8,
-                  horizontalMargin: 10,
-                  headingTextStyle: theme.textTheme.labelLarge,
+              child: DataTable(
+                columns: dataColumns,
+                rows: rows,
+                sortColumnIndex: sortColumnIndex,
+                sortAscending: sortAscending,
+                showCheckboxColumn: selectable,
+                onSelectAll: onToggleSelectAll == null
+                    ? null
+                    : (_) => onToggleSelectAll(),
+                headingRowColor: WidgetStatePropertyAll(
+                  theme.colorScheme.surfaceContainerHigh,
                 ),
+                columnSpacing: 8,
+                horizontalMargin: 10,
+                headingTextStyle: theme.textTheme.labelLarge,
               ),
             ),
           ),

@@ -41,8 +41,11 @@ class TicketListScreen extends StatelessWidget {
         TableColumnSpec(
           label: 'Тема',
           sortField: 'subject',
+          // Тема обрезается многоточием: целиком она видна в карточке,
+          // а на ноутбуке 1280 лишние 50 пикселей выталкивали кнопку
+          // удаления за край таблицы.
           build: (context, t) => ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
+            constraints: const BoxConstraints(maxWidth: 150),
             child: Text(t.subject, overflow: TextOverflow.ellipsis),
           ),
         ),
@@ -75,16 +78,19 @@ class TicketListScreen extends StatelessWidget {
           // Связь многие ко многим: в таблице она видна числом.
           label: 'Соисп.',
           numeric: true,
+          minTableWidth: 1250,
           build: (context, t) => Text('${t.coworkerIds.length}'),
         ),
         TableColumnSpec(
           label: 'Заявитель',
+          minTableWidth: 1350,
           build: (context, t) =>
               Text(shortName(reference.requesterName(t.requesterId))),
         ),
         TableColumnSpec(
           label: 'Создана',
           sortField: 'createdAt',
+          minTableWidth: 1250,
           build: (context, t) => Text(formatDate(t.createdAt)),
         ),
         TableColumnSpec(

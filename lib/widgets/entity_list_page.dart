@@ -12,6 +12,7 @@ import '../state/list_notifier.dart';
 import '../state/reference_data_notifier.dart';
 import '../state/load_status.dart';
 import 'confirm_dialog.dart';
+import 'connection_banner.dart';
 import 'debounced_search_field.dart';
 import 'entity_card_list.dart';
 import 'entity_table.dart';
@@ -227,7 +228,8 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
 
     final notifier = context.watch<ListNotifier<T, Q>>();
     final query = notifier.query;
-    final compact = screenSizeOf(context) == ScreenSize.compact;
+    final size = screenSizeOf(context);
+    final compact = size == ScreenSize.compact;
 
     // Кнопки, которыми роль всё равно не сможет воспользоваться, скрыты.
     // Это уборка интерфейса, а не защита: вернуть кнопку правкой данных
@@ -271,7 +273,16 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
           if (_filtersExpanded ?? false) _filterPanel(context, query),
           if (_canManage && notifier.hasSelection)
             _selectionBar(context, notifier),
-          Expanded(child: _content(context, notifier, compact)),
+          Expanded(
+            // Список, не загрузившийся из-за пропавшей связи, перечитывается
+            // сам, как только сервер снова ответит.
+            child: ReloadOnReconnect(
+              onReconnect: () {
+                if (_notifier.status == LoadStatus.error) _notifier.load();
+              },
+              child: _content(context, notifier, size),
+            ),
+          ),
           if (notifier.status != LoadStatus.error)
             PaginationBar(
               page: notifier.result.page,
@@ -341,21 +352,29 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
               widget.filters!(context, query, _goWith),
               const SizedBox(height: 4),
             ],
-            Row(
+            // Wrap, а не Row: на окне 360 переключатель с подписью и кнопка
+            // сброса в одну строку не помещались, и кнопка уходила вниз
+            // отдельной строкой только благодаря переносу.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
-                Switch(
-                  value: query.includeDeleted,
-                  onChanged: (value) =>
-                      _goWith(query.withIncludeDeleted(value)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Switch(
+                      value: query.includeDeleted,
+                      onChanged: (value) =>
+                          _goWith(query.withIncludeDeleted(value)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Показывать удалённые записи',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Показывать удалённые записи',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-                const Spacer(),
                 TextButton.icon(
                   onPressed: query.hasAnyCondition
                       ? () => _goWith(query.cleared())
@@ -413,7 +432,7 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
   Widget _content(
     BuildContext context,
     ListNotifier<T, Q> notifier,
-    bool compact,
+    ScreenSize size,
   ) {
     // Сначала загрузка и ошибка, затем «успех с пустым списком»: иначе
     // при пустом результате останется индикатор загрузки.
@@ -426,6 +445,7 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
           message: notifier.error ?? 'Неизвестная ошибка',
           onRetry: notifier.load,
           forbidden: notifier.isForbidden,
+          offline: notifier.isOffline,
         );
       case LoadStatus.success:
         if (notifier.result.items.isEmpty) {
@@ -439,7 +459,14 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
             onReset: filtered ? () => _goWith(notifier.query.cleared()) : null,
           );
         }
-        return compact ? _cards(context, notifier) : _table(context, notifier);
+        // Таблица из десяти колонок читается только на широком окне.
+        // На планшете те же записи идут карточками в две колонки,
+        // на телефоне — в одну.
+        return switch (size) {
+          ScreenSize.compact => _cards(context, notifier, columns: 1),
+          ScreenSize.medium => _cards(context, notifier, columns: 2),
+          ScreenSize.expanded => _table(context, notifier),
+        };
     }
   }
 
@@ -467,8 +494,13 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
     );
   }
 
-  Widget _cards(BuildContext context, ListNotifier<T, Q> notifier) {
+  Widget _cards(
+    BuildContext context,
+    ListNotifier<T, Q> notifier, {
+    required int columns,
+  }) {
     return EntityCardList<T>(
+      columns: columns,
       items: notifier.result.items,
       idOf: widget.idOf,
       selected: notifier.selected,

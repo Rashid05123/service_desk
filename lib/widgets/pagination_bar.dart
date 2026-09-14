@@ -46,6 +46,8 @@ class PaginationBar extends StatelessWidget {
           ? 'Ничего не найдено'
           : 'Показаны $firstItemNumber–$lastItemNumber из $total $itemsLabel',
       style: theme.textTheme.bodySmall,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
 
     final sizeSelector = Row(
@@ -135,10 +137,13 @@ class PaginationBar extends StatelessWidget {
                   ),
                 ],
               )
+            // Счётчик забирает оставшееся место и при нехватке обрезается:
+            // со Spacer на планшете строка переполнялась, и кнопка
+            // последней страницы уходила за край.
             : Row(
                 children: [
-                  counter,
-                  const Spacer(),
+                  Expanded(child: counter),
+                  const SizedBox(width: 16),
                   sizeSelector,
                   const SizedBox(width: 16),
                   pager,

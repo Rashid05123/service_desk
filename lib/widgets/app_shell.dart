@@ -86,8 +86,9 @@ const List<AppDestination> appDestinations = [
 ];
 
 /// Каркас: шапка с пользователем и навигация по разделам роли.
-/// До 600 навигация уходит в выдвижную панель, шире — боковая полоса,
-/// с 1800 полоса раскрывается вместе с подписями.
+/// До 600 навигация стоит внизу, до 1200 — боковая полоса с подписями
+/// под значками, шире полоса раскрывается, а содержимое ограничено
+/// по ширине.
 class AppShell extends StatelessWidget {
   final Widget child;
 
@@ -125,28 +126,11 @@ class AppShell extends StatelessWidget {
     void select(int index) => context.go(items[index].path);
 
     if (size == ScreenSize.compact) {
-      return Scaffold(
-        drawer: NavigationDrawer(
-          selectedIndex: selectedIndex,
-          onDestinationSelected: (index) {
-            Navigator.of(context).pop();
-            select(index);
-          },
-          children: [
-            const SizedBox(height: 16),
-            for (final d in items)
-              NavigationDrawerDestination(
-                icon: Icon(d.icon),
-                label: Text(d.label),
-              ),
-          ],
-        ),
-        body: Column(
-          children: [
-            const _SessionHeader(compact: true),
-            Expanded(child: _ContentBoundary(child: child)),
-          ],
-        ),
+      return _BottomNavigationShell(
+        items: items,
+        selectedIndex: selectedIndex,
+        onSelect: select,
+        child: child,
       );
     }
 
@@ -159,29 +143,176 @@ class AppShell extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                NavigationRail(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: select,
-                  extended: extended,
-                  // extended: true и labelType, отличный от none, вместе
-                  // задать нельзя: будет исключение при сборке.
-                  labelType: extended
-                      ? NavigationRailLabelType.none
-                      : NavigationRailLabelType.all,
-                  destinations: [
-                    for (final d in items)
-                      NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        label: Text(d.label),
-                      ),
-                  ],
+                _ScrollableRail(
+                  child: NavigationRail(
+                    selectedIndex: selectedIndex,
+                    onDestinationSelected: select,
+                    extended: extended,
+                    minExtendedWidth: kExtendedRailWidth,
+                    // extended: true и labelType, отличный от none, вместе
+                    // задать нельзя: будет исключение при сборке.
+                    labelType: extended
+                        ? NavigationRailLabelType.none
+                        : NavigationRailLabelType.all,
+                    destinations: [
+                      for (final d in items)
+                        NavigationRailDestination(
+                          icon: Icon(d.icon),
+                          label: Text(d.label),
+                        ),
+                    ],
+                  ),
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: _ContentBoundary(child: child)),
+                Expanded(
+                  child: _ContentBoundary(
+                    child: extended ? _WidthLimit(child: child) : child,
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Навигация телефона: разделы в нижней панели, лишние — в пункте «Ещё».
+///
+/// Выдвижная панель ПР5 прятала разделы за кнопкой меню: чтобы перейти
+/// из заявок в очередь, нужно было два нажатия и знание, что меню есть.
+/// Нижняя панель видна всегда и лежит под большим пальцем.
+class _BottomNavigationShell extends StatelessWidget {
+  const _BottomNavigationShell({
+    required this.items,
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.child,
+  });
+
+  final List<AppDestination> items;
+  final int? selectedIndex;
+  final ValueChanged<int> onSelect;
+  final Widget child;
+
+  Future<void> _showMore(BuildContext context, int firstOverflowIndex) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (var i = firstOverflowIndex; i < items.length; i++)
+              ListTile(
+                leading: Icon(items[i].icon),
+                title: Text(items[i].label),
+                subtitle: Text(
+                  items[i].description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                selected: i == selectedIndex,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  onSelect(i);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final split = splitBottomDestinations(items);
+    final primary = split.primary;
+    final hasMore = split.overflow.isNotEmpty;
+
+    // Раздел из «Ещё» подсвечивает сам пункт «Ещё»: иначе на экране
+    // статистики в панели не был бы выбран ни один пункт.
+    final selected = selectedIndex;
+    final barIndex = selected == null
+        ? null
+        : (selected < primary.length ? selected : primary.length);
+
+    return Scaffold(
+      body: Column(
+        children: [
+          const _SessionHeader(compact: true),
+          Expanded(child: _ContentBoundary(child: child)),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        // Выбранного раздела может не быть — например, на экране отказа.
+        // Панель без выбора не бывает, поэтому подсветка там прозрачная.
+        selectedIndex: barIndex ?? 0,
+        indicatorColor: barIndex == null ? Colors.transparent : null,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
+          if (hasMore && index == primary.length) {
+            _showMore(context, primary.length);
+          } else {
+            onSelect(index);
+          }
+        },
+        destinations: [
+          for (final d in primary)
+            NavigationDestination(
+              icon: Icon(d.icon),
+              label: d.label,
+              tooltip: d.description,
+            ),
+          if (hasMore)
+            const NavigationDestination(
+              icon: Icon(Icons.more_horiz),
+              label: 'Ещё',
+              tooltip: 'Остальные разделы',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Прокрутка полосы навигации по вертикали.
+///
+/// NavigationRail сам не прокручивается: у администратора девять
+/// разделов, и в окне высотой 600 нижние пункты уходили за край
+/// с полосой переполнения.
+class _ScrollableRail extends StatelessWidget {
+  const _ScrollableRail({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(child: child),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ограничение ширины содержимого на широком мониторе.
+class _WidthLimit extends StatelessWidget {
+  const _WidthLimit({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+        child: child,
       ),
     );
   }
@@ -225,16 +356,7 @@ class _SessionHeader extends StatelessWidget {
         height: 56,
         child: Row(
           children: [
-            if (compact)
-              Builder(
-                builder: (context) => IconButton(
-                  tooltip: 'Разделы',
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-              )
-            else
-              const SizedBox(width: 20),
+            SizedBox(width: compact ? 16 : 20),
             Icon(Icons.support_agent, color: scheme.primary),
             const SizedBox(width: 10),
             if (!compact)

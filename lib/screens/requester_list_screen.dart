@@ -60,6 +60,7 @@ class RequesterListScreen extends StatelessWidget {
         ),
         TableColumnSpec(
           label: 'Кабинет',
+          minTableWidth: 1250,
           build: (context, r) => Text(r.account.office),
         ),
         TableColumnSpec(

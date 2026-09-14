@@ -2,7 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'widgets/connection_banner.dart';
 import 'widgets/session_guard.dart';
+
+/// Ширина диалогов задана темой, а не каждому диалогу: иначе длинный
+/// вопрос об удалении на мониторе 1920 растягивал окно почти на весь
+/// экран, а новый диалог легко забыть ограничить.
+const _dialogTheme = DialogThemeData(
+  constraints: BoxConstraints(minWidth: 280, maxWidth: 560),
+);
 
 /// Корневой виджет. MaterialApp.router нужен для работы go_router.
 ///
@@ -25,10 +33,11 @@ class ServiceDeskApp extends StatelessWidget {
       title: 'Служба технической поддержки',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
-      // Сроки сессии следят за действиями на любом экране, поэтому
-      // обёртка стоит над навигатором, а не внутри отдельного экрана.
-      builder: (context, child) =>
-          SessionGuard(child: child ?? const SizedBox.shrink()),
+      // Сроки сессии и связь с сервером касаются любого экрана, поэтому
+      // обёртки стоят над навигатором, а не внутри отдельного экрана.
+      builder: (context, child) => ConnectionBanner(
+        child: SessionGuard(child: child ?? const SizedBox.shrink()),
+      ),
       // Русская локаль для календаря в выборе даты.
       locale: const Locale('ru'),
       supportedLocales: const [Locale('ru'), Locale('en')],
@@ -37,8 +46,16 @@ class ServiceDeskApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(colorScheme: scheme, useMaterial3: true),
-      darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
+      theme: ThemeData(
+        colorScheme: scheme,
+        useMaterial3: true,
+        dialogTheme: _dialogTheme,
+      ),
+      darkTheme: ThemeData(
+        colorScheme: darkScheme,
+        useMaterial3: true,
+        dialogTheme: _dialogTheme,
+      ),
       themeMode: ThemeMode.system,
     );
   }

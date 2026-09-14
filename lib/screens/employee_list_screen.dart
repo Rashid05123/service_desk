@@ -57,6 +57,7 @@ class EmployeeListScreen extends StatelessWidget {
         TableColumnSpec(
           // Связь многие ко многим: компетенции сотрудника.
           label: 'Компетенции',
+          minTableWidth: 1250,
           build: (context, e) => ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 240),
             child: Text(
