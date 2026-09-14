@@ -27,13 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _submitting = false;
   String? _error;
 
-  /// Учётные записи учебного сервера, по одной на роль.
-  static const _demoAccounts = [
-    (username: 'grigorev', password: 'grigorev123', role: 'заявитель'),
-    (username: 'abramov', password: 'abramov123', role: 'специалист'),
-    (username: 'admin', password: 'admin123', role: 'администратор'),
-  ];
-
   @override
   void dispose() {
     _username.dispose();
@@ -192,31 +185,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ).toString(),
                   ),
                   child: const Text('Нет учётной записи? Зарегистрироваться'),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Учебный стенд: учётные записи для проверки',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final account in _demoAccounts)
-                      ActionChip(
-                        label: Text('${account.username} · ${account.role}'),
-                        onPressed: () => setState(() {
-                          _username.text = account.username;
-                          _password.text = account.password;
-                          _error = null;
-                        }),
-                      ),
-                  ],
                 ),
               ],
             ),
