@@ -76,19 +76,15 @@ class PaginationBar extends StatelessWidget {
         // На узком окне пять кнопок в строку не помещаются, поэтому
         // переходы к первой и последней странице там убраны.
         if (!compact)
-          Tooltip(
-            message: 'Первая страница',
-            child: IconButton(
-              icon: const Icon(Icons.first_page),
-              onPressed: hasPrevious ? () => onPageChanged(1) : null,
-            ),
+          IconButton(
+            tooltip: 'Первая страница',
+            icon: const Icon(Icons.first_page),
+            onPressed: hasPrevious ? () => onPageChanged(1) : null,
           ),
-        Tooltip(
-          message: 'Предыдущая страница',
-          child: IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: hasPrevious ? () => onPageChanged(page - 1) : null,
-          ),
+        IconButton(
+          tooltip: 'Предыдущая страница',
+          icon: const Icon(Icons.chevron_left),
+          onPressed: hasPrevious ? () => onPageChanged(page - 1) : null,
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -97,20 +93,16 @@ class PaginationBar extends StatelessWidget {
             style: theme.textTheme.bodyMedium,
           ),
         ),
-        Tooltip(
-          message: 'Следующая страница',
-          child: IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: hasNext ? () => onPageChanged(page + 1) : null,
-          ),
+        IconButton(
+          tooltip: 'Следующая страница',
+          icon: const Icon(Icons.chevron_right),
+          onPressed: hasNext ? () => onPageChanged(page + 1) : null,
         ),
         if (!compact)
-          Tooltip(
-            message: 'Последняя страница',
-            child: IconButton(
-              icon: const Icon(Icons.last_page),
-              onPressed: hasNext ? () => onPageChanged(totalPages) : null,
-            ),
+          IconButton(
+            tooltip: 'Последняя страница',
+            icon: const Icon(Icons.last_page),
+            onPressed: hasNext ? () => onPageChanged(totalPages) : null,
           ),
       ],
     );

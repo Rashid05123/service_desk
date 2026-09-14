@@ -254,12 +254,10 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
             ),
             const SizedBox(width: 8),
           ],
-          Tooltip(
-            message: 'Обновить',
-            child: IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: notifier.load,
-            ),
+          IconButton(
+            tooltip: 'Обновить',
+            icon: const Icon(Icons.refresh),
+            onPressed: notifier.load,
           ),
           FaultToggle(onChanged: notifier.load),
           const SizedBox(width: 8),
@@ -517,50 +515,43 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
     final id = widget.idOf(item);
     final deleted = widget.isDeleted(item);
 
+    // Подсказка задаётся самой кнопке, а не обёрткой Tooltip. Обёртка
+    // отдаёт свою подпись ближайшему узлу дерева доступности, а в строке
+    // таблицы это ячейка: ячейка получала подпись первой кнопки, а
+    // «Изменить» и «Удалить» экранный чтец объявлял безымянными кнопками.
     return [
-      Tooltip(
-        message: 'Открыть карточку',
-        child: IconButton(
-          icon: const Icon(Icons.open_in_new),
-          onPressed: () => context.go(_withCurrentQuery('${widget.path}/$id')),
-        ),
+      IconButton(
+        tooltip: 'Открыть карточку',
+        icon: const Icon(Icons.open_in_new),
+        onPressed: () => context.go(_withCurrentQuery('${widget.path}/$id')),
       ),
       if (_canManage)
-        Tooltip(
-          message: 'Изменить',
-          child: IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            // Удалённую запись сначала восстанавливают, потом правят.
-            onPressed: deleted
-                ? null
-                : () =>
-                      context.go(_withCurrentQuery('${widget.path}/$id/edit')),
-          ),
+        IconButton(
+          tooltip: 'Изменить',
+          icon: const Icon(Icons.edit_outlined),
+          // Удалённую запись сначала восстанавливают, потом правят.
+          onPressed: deleted
+              ? null
+              : () => context.go(_withCurrentQuery('${widget.path}/$id/edit')),
         ),
       if (deleted && _canRestore)
-        Tooltip(
-          message: 'Восстановить',
-          child: IconButton(
-            icon: const Icon(Icons.restore_from_trash),
-            onPressed: () => _notifier.restore(id),
-          ),
+        IconButton(
+          tooltip: 'Восстановить',
+          icon: const Icon(Icons.restore_from_trash),
+          onPressed: () => _notifier.restore(id),
         )
       else if (!deleted && _canManage)
-        Tooltip(
-          message: 'Удалить (логически)',
-          child: IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmSoftDelete(item),
-          ),
+        IconButton(
+          tooltip: 'Удалить (логически)',
+          icon: const Icon(Icons.delete_outline),
+          onPressed: () => _confirmSoftDelete(item),
         ),
       if (_canHardDelete)
-        Tooltip(
-          message: 'Удалить безвозвратно',
-          child: IconButton(
-            icon: const Icon(Icons.delete_forever),
-            color: Theme.of(context).colorScheme.error,
-            onPressed: () => _confirmHardDelete(item),
-          ),
+        IconButton(
+          tooltip: 'Удалить безвозвратно',
+          icon: const Icon(Icons.delete_forever),
+          color: Theme.of(context).colorScheme.error,
+          onPressed: () => _confirmHardDelete(item),
         ),
     ];
   }
@@ -612,14 +603,12 @@ class _FaultToggleState extends State<FaultToggle> {
           child: Text('Медленный ответ (${FaultSwitch.delayMs} мс)'),
         ),
       ],
-      builder: (context, controller, _) => Tooltip(
-        message: 'Учебные переключатели сервера',
-        child: IconButton(
-          icon: Icon(active ? Icons.bug_report : Icons.bug_report_outlined),
-          color: active ? scheme.error : null,
-          onPressed: () =>
-              controller.isOpen ? controller.close() : controller.open(),
-        ),
+      builder: (context, controller, _) => IconButton(
+        tooltip: 'Учебные переключатели сервера',
+        icon: Icon(active ? Icons.bug_report : Icons.bug_report_outlined),
+        color: active ? scheme.error : null,
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
       ),
     );
   }

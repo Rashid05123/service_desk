@@ -61,12 +61,10 @@ class DetailPage<T> extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(titleOf(item)),
-        leading: Tooltip(
-          message: 'Вернуться к списку',
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go(listUri()),
-          ),
+        leading: IconButton(
+          tooltip: 'Вернуться к списку',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(listUri()),
         ),
         actions: [
           if (item != null && canManage)

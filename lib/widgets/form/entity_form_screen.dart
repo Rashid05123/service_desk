@@ -104,12 +104,10 @@ class _EntityFormScreenState extends State<EntityFormScreen> {
                 ),
             ],
           ),
-          leading: Tooltip(
-            message: 'Вернуться к списку',
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _leave,
-            ),
+          leading: IconButton(
+            tooltip: 'Вернуться к списку',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _leave,
           ),
         ),
         body: EntityForm(
