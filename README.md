@@ -287,10 +287,14 @@ flutter build web --release --wasm
 Публикация в подкаталоге и адрес API задаются флагами сборки:
 
 ```bash
-flutter build web --release --wasm --base-href /service_desk/ --dart-define=API_BASE_URL=https://api.example.com/api
+flutter build web --release --base-href /service_desk/ --dart-define=API_BASE_URL=https://api.example.com/api
 node tool/trim-web-build.js build/web
 cp build/web/index.html build/web/404.html
 ```
+
+Публикуется вариант на JavaScript: по замеру первый кадр у него наступает
+на 0,4 с раньше, чем у варианта с WebAssembly (1,53 с против 1,96 с), хотя
+передаётся на 11 % больше (4,7 МБ против 4,2 МБ).
 
 На GitHub Pages это делает `.github/workflows/deploy.yml` при каждом
 изменении `main`, после форматирования, анализатора и тестов. Адрес API

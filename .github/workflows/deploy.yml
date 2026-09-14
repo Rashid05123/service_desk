@@ -49,12 +49,17 @@ jobs:
       #
       # Базовый путь — имя репозитория: Pages публикует проект по адресу
       # https://<пользователь>.github.io/<репозиторий>/.
+      #
+      # Публикуется вариант на JavaScript, без --wasm. По замеру
+      # tool/measure-load.js первый кадр у него наступает раньше: Pages не
+      # умеет отдавать заголовки COOP/COEP, без них движок WebAssembly
+      # работает в один поток, и выигрыш в объёме не окупает задержку.
       - name: Сборка
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL || 'http://localhost:8080/api' }}
           BASE_HREF: /${{ github.event.repository.name }}/
         run: |
-          flutter build web --release --wasm \
+          flutter build web --release \
             --base-href "$BASE_HREF" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
           node tool/trim-web-build.js build/web
