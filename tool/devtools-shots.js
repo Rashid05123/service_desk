@@ -190,7 +190,10 @@ async function main() {
   const devtools = await browser.openTab(devtoolsUrl);
   await sleep(6000);
 
-  const script = require('./devtools-script.js');
+  // Сценарий вторым аргументом; без него — сценарий отчёта по ПР4.
+  const script = require(
+    process.argv[3] ? path.resolve(process.argv[3]) : './devtools-script.js',
+  );
   await script({ app, devtools, sleep, APP });
 
   ws.close();

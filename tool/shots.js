@@ -6,7 +6,9 @@
  * один в один: тот же размер окна, та же последовательность действий.
  * Зависимостей нет — Node 22 умеет WebSocket сам.
  *
- *   node tool/shots.js <папка для снимков>
+ *   node tool/shots.js <папка для снимков> [сценарий]
+ *
+ * Без второго аргумента выполняется сценарий отчёта по ПР4.
  *
  * Приложение и учебный сервер должны быть уже запущены.
  */
@@ -136,6 +138,96 @@ class Session {
     await sleep(wait);
   }
 
+  async eval(expression) {
+    const { result } = await this.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    return result.value;
+  }
+
+  /**
+   * Включение дерева доступности Flutter. Приложение рисует в canvas,
+   * но для экранных чтецов строит параллельное дерево элементов с
+   * подписями и координатами — по нему элемент находится по тексту,
+   * а не по точке, которая съезжает при любой правке разметки.
+   */
+  async enableSemantics() {
+    await this.eval(`(() => {
+      const p = document.querySelector('flt-semantics-placeholder');
+      if (p) p.click();
+      return Boolean(p);
+    })()`);
+    await sleep(800);
+  }
+
+  /** Элементы, в подписи которых есть текст; самые мелкие — первыми. */
+  async locate(text, { exact = false } = {}) {
+    return this.eval(`(() => {
+      const want = ${JSON.stringify(text)};
+      const exact = ${exact};
+      const label = (n) =>
+        (n.getAttribute('aria-label') || n.textContent || '').trim();
+      return [...document.querySelectorAll('flt-semantics, input, textarea')]
+        .map((n) => ({ n, text: label(n), r: n.getBoundingClientRect() }))
+        .filter((e) => e.r.width > 0 && e.r.height > 0)
+        .filter((e) => (exact ? e.text === want : e.text.includes(want)))
+        .sort((a, b) => a.r.width * a.r.height - b.r.width * b.r.height)
+        .map((e) => ({
+          x: Math.round(e.r.x + e.r.width / 2),
+          y: Math.round(e.r.y + e.r.height / 2),
+          text: e.text.slice(0, 80),
+        }));
+    })()`);
+  }
+
+  /**
+   * Щелчок по элементу с текстом.
+   *
+   * Щелчок отправляется событием click самому узлу дерева доступности,
+   * а не мышью по точке. После первых событий мыши Flutter переключается
+   * в режим указателя и перестаёт принимать щелчки по узлам: кнопка
+   * на снимке есть, а переход не происходит.
+   */
+  async clickText(
+    text,
+    { exact = false, nth = 0, wait = 900, within = () => true } = {},
+  ) {
+    const hits = (await this.locate(text, { exact })).filter(within);
+    if (!hits[nth]) throw new Error(`не найден элемент «${text}»`);
+    const { x, y } = hits[nth];
+    const clicked = await this.eval(`(() => {
+      const el = document.elementFromPoint(${x}, ${y});
+      const node = el && el.closest('flt-semantics');
+      if (!node) return false;
+      node.click();
+      return true;
+    })()`);
+    if (!clicked) await this.click(x, y, 0);
+    await sleep(wait);
+  }
+
+  /**
+   * Ввод в поле, найденное по подписи: щелчок, выделение, текст.
+   *
+   * Поле получает настоящий щелчок мышью: событие click узлу дерева
+   * доступности фокус в поле ввода не переводит. Введённое значение
+   * сверяется с ожидаемым, иначе текст мог молча уйти в другое поле.
+   */
+  async fill(label, text, wait = 400) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const hit = (await this.locate(label))[0];
+      if (!hit) throw new Error(`не найдено поле «${label}»`);
+      await this.click(hit.x, hit.y, 350);
+      await this.selectAll();
+      await this.type(text, wait);
+      const value = await this.eval(`document.activeElement?.value ?? null`);
+      if (value === text) return;
+    }
+    throw new Error(`не удалось ввести текст в поле «${label}»`);
+  }
+
   async shot(name) {
     const { data } = await this.send('Page.captureScreenshot', { format: 'png' });
     const file = path.join(OUT, name + '.png');
@@ -162,7 +254,10 @@ async function main() {
   await page.send('Page.enable');
   await page.resize(WIDTH, HEIGHT);
 
-  const script = require('./shot-script.js');
+  // Сценарий вторым аргументом; без него — сценарий отчёта по ПР4.
+  const script = require(
+    process.argv[3] ? path.resolve(process.argv[3]) : './shot-script.js',
+  );
   await script(page, { sleep, APP });
 
   ws.close();

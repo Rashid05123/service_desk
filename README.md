@@ -304,6 +304,7 @@ tool/
   serve-web.js                 — раздача собранного build/web
   shots.js, shot-script.js     — снятие экранов через протокол Chrome
   shot-script-pr5.js           — сценарий снимков ПР5 по дереву доступности
+  devtools-shots.js, devtools-script*.js — снимки панели разработчика Chrome
 ```
 
 Границы слоёв: виджет обращается к данным только через notifier, notifier
