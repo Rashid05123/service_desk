@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api_exceptions.dart';
+import 'connection_banner.dart';
 import 'status_views.dart';
 
 /// Загрузка данных экрана с тремя состояниями: загрузка, ошибка, данные.
@@ -20,35 +21,52 @@ class AsyncView<T> extends StatefulWidget {
 class AsyncViewState<T> extends State<AsyncView<T>> {
   late Future<T> _future;
 
+  /// Последняя загрузка завершилась ошибкой. Нужен, чтобы после
+  /// возвращения связи перечитать только экран с ошибкой, а не каждый.
+  bool _failed = false;
+
   @override
   void initState() {
     super.initState();
-    _future = widget.load();
+    _future = _start();
+  }
+
+  Future<T> _start() {
+    _failed = false;
+    final future = widget.load();
+    future.then<void>((_) {}, onError: (Object _) => _failed = true);
+    return future;
   }
 
   /// Перечитать данные: после изменения и по кнопке обновления.
   void reload() {
-    setState(() => _future = widget.load());
+    setState(() => _future = _start());
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<T>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const LoadingView();
-        }
-        final error = snapshot.error;
-        if (error != null) {
-          return ErrorView(
-            message: '$error',
-            forbidden: error is ForbiddenException,
-            onRetry: reload,
-          );
-        }
-        return widget.builder(context, snapshot.data as T);
+    return ReloadOnReconnect(
+      onReconnect: () {
+        if (_failed) reload();
       },
+      child: FutureBuilder<T>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const LoadingView();
+          }
+          final error = snapshot.error;
+          if (error != null) {
+            return ErrorView(
+              message: '$error',
+              forbidden: error is ForbiddenException,
+              offline: error is NetworkException,
+              onRetry: reload,
+            );
+          }
+          return widget.builder(context, snapshot.data as T);
+        },
+      ),
     );
   }
 }

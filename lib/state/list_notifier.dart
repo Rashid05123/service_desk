@@ -52,6 +52,11 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
   /// а не «ошибку загрузки» с кнопкой повтора: повтор ничего не изменит.
   bool get isForbidden => _forbidden;
 
+  /// Загрузка не дошла до сервера: связи нет. Экран объясняет это
+  /// отдельно и перечитывает список сам, когда связь вернётся.
+  bool get isOffline => _offline;
+  bool _offline = false;
+
   Set<int> get selected => Set.unmodifiable(_selected);
 
   bool get hasSelection => _selected.isNotEmpty;
@@ -77,6 +82,7 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
     _status = LoadStatus.loading;
     _error = null;
     _forbidden = false;
+    _offline = false;
     _safeNotify();
 
     try {
@@ -91,6 +97,7 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
     } catch (e) {
       if (requestId != _requestId) return;
       _forbidden = e is ForbiddenException;
+      _offline = e is NetworkException;
       _error = e is ForbiddenException ? e.message : '$failureMessage: $e';
       _status = LoadStatus.error;
     }
@@ -116,6 +123,7 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
     _error = null;
     _actionError = null;
     _forbidden = false;
+    _offline = false;
     _selected.clear();
     _safeNotify();
   }

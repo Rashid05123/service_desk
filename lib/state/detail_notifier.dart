@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/api_exceptions.dart';
 import 'load_status.dart';
 
 /// Состояние экрана карточки. Обобщён по типу записи: у заявки и у
@@ -27,6 +28,10 @@ class DetailNotifier<T> extends ChangeNotifier {
 
   String? get error => _error;
 
+  /// Запись не загрузилась, потому что нет связи с сервером.
+  bool get isOffline => _offline;
+  bool _offline = false;
+
   /// Загрузка прошла, но записи нет. Это не ошибка: адрес могли набрать
   /// руками.
   bool get isMissing => _status == LoadStatus.success && _item == null;
@@ -48,6 +53,7 @@ class DetailNotifier<T> extends ChangeNotifier {
       _status = LoadStatus.success;
     } catch (e) {
       if (_lastId != id) return;
+      _offline = e is NetworkException;
       _error = 'Не удалось загрузить запись: $e';
       _status = LoadStatus.error;
     }

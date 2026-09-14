@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_exceptions.dart';
 import '../../state/reference_data_notifier.dart';
+import '../connection_banner.dart';
 import '../status_views.dart';
 
 /// Загрузка всего, что нужно форме, до её построения.
@@ -87,10 +89,15 @@ class _FormLoaderState<T> extends State<FormLoader<T>> {
           return const Scaffold(body: LoadingView());
         }
         if (snapshot.hasError) {
+          void retry() => setState(() => _future = _load());
           return Scaffold(
-            body: ErrorView(
-              message: 'Не удалось открыть форму: ${snapshot.error}',
-              onRetry: () => setState(() => _future = _load()),
+            body: ReloadOnReconnect(
+              onReconnect: retry,
+              child: ErrorView(
+                message: 'Не удалось открыть форму: ${snapshot.error}',
+                offline: snapshot.error is NetworkException,
+                onRetry: retry,
+              ),
             ),
           );
         }

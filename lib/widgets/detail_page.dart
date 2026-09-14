@@ -7,6 +7,7 @@ import '../state/auth_notifier.dart';
 
 import '../state/detail_notifier.dart';
 import '../state/load_status.dart';
+import 'connection_banner.dart';
 import 'status_views.dart';
 
 /// Карточка записи, общая для всех пяти сущностей: загрузка по адресу,
@@ -86,9 +87,13 @@ class DetailPage<T> extends StatelessWidget {
       ),
       body: switch (notifier.status) {
         LoadStatus.idle || LoadStatus.loading => const LoadingView(),
-        LoadStatus.error => ErrorView(
-          message: notifier.error ?? 'Неизвестная ошибка',
-          onRetry: notifier.reload,
+        LoadStatus.error => ReloadOnReconnect(
+          onReconnect: notifier.reload,
+          child: ErrorView(
+            message: notifier.error ?? 'Неизвестная ошибка',
+            offline: notifier.isOffline,
+            onRetry: notifier.reload,
+          ),
         ),
         LoadStatus.success =>
           item == null

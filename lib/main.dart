@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/api_client.dart';
+import 'core/config.dart';
 import 'core/fault_switch.dart';
 import 'core/permissions.dart';
 import 'core/router.dart';
@@ -27,6 +29,7 @@ import 'repositories/requester_repository.dart';
 import 'repositories/ticket_repository.dart';
 import 'repositories/workspace_api.dart';
 import 'state/auth_notifier.dart';
+import 'state/connection_notifier.dart';
 import 'state/list_notifier.dart';
 import 'state/reference_data_notifier.dart';
 
@@ -42,11 +45,35 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
+  // Пока связи с сервером нет, он опрашивается отдельным клиентом без
+  // интерсепторов: проверке не нужны ни токен, ни повторы, ни журнал.
+  final probe = Dio(
+    BaseOptions(
+      baseUrl: apiBaseUrl,
+      connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 3),
+    ),
+  );
+  final connection = ConnectionNotifier(
+    probe: () async {
+      try {
+        final response = await probe.get<dynamic>('/__health');
+        return response.statusCode == 200;
+      } on DioException {
+        return false;
+      }
+    },
+  );
+
   // Клиент HTTP и сессия ссылаются друг на друга: интерсептору нужен
   // токен сессии, а сессии — клиент для входа и обновления токена.
   // Поэтому сессия передаётся функцией и разрешается при первом запросе.
   late final AuthNotifier auth;
-  final dio = buildDio(faults: faults, session: () => auth);
+  final dio = buildDio(
+    faults: faults,
+    session: () => auth,
+    connection: connection,
+  );
   auth = AuthNotifier(prefs, AuthApi(dio));
 
   // Сессия восстанавливается до первого кадра: иначе маршрутизатор
@@ -117,6 +144,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<FaultSwitch>.value(value: faults),
+        ChangeNotifierProvider<ConnectionNotifier>.value(value: connection),
         Provider<AppRepositories>.value(value: repositories),
         Provider<WorkspaceApi>.value(value: workspace),
         ChangeNotifierProvider<AuthNotifier>.value(value: auth),

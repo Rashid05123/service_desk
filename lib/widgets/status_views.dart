@@ -81,16 +81,21 @@ class EmptyView extends StatelessWidget {
 ///
 /// Отказ сервера по правам с кодом 403 показывается иначе: повтор его
 /// не исправит, и кнопки повтора нет.
+///
+/// Пропавшая связь тоже показывается отдельно: это не сбой приложения,
+/// и экран обновится сам, когда сервер снова ответит.
 class ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
   final bool forbidden;
+  final bool offline;
 
   const ErrorView({
     super.key,
     required this.message,
     required this.onRetry,
     this.forbidden = false,
+    this.offline = false,
   });
 
   @override
@@ -106,13 +111,19 @@ class ErrorView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                forbidden ? Icons.gpp_bad_outlined : Icons.error_outline,
+                forbidden
+                    ? Icons.gpp_bad_outlined
+                    : (offline
+                          ? Icons.cloud_off_outlined
+                          : Icons.error_outline),
                 size: 56,
                 color: theme.colorScheme.error,
               ),
               const SizedBox(height: 16),
               Text(
-                forbidden ? 'Сервер отказал в доступе' : 'Ошибка загрузки',
+                forbidden
+                    ? 'Сервер отказал в доступе'
+                    : (offline ? 'Нет связи с сервером' : 'Ошибка загрузки'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -133,12 +144,24 @@ class ErrorView extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 )
-              else
+              else ...[
                 FilledButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Повторить'),
                 ),
+                if (offline) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Когда связь восстановится, данные загрузятся сами — '
+                    'перезагружать страницу не нужно.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),

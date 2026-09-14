@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../state/connection_notifier.dart';
 import 'api_exceptions.dart';
 import 'config.dart';
 import 'fault_switch.dart';
@@ -8,7 +9,11 @@ import 'fault_switch.dart';
 /// Настроенный клиент HTTP: базовый адрес, таймауты и цепочка
 /// интерсепторов. Всё, что относится к сети, собрано здесь, поэтому
 /// репозиторию остаются только адреса и разбор тела.
-Dio buildDio({FaultSwitch? faults, AuthSession Function()? session}) {
+Dio buildDio({
+  FaultSwitch? faults,
+  AuthSession Function()? session,
+  ConnectionNotifier? connection,
+}) {
   final dio = Dio(
     BaseOptions(
       baseUrl: apiBaseUrl,
@@ -25,7 +30,12 @@ Dio buildDio({FaultSwitch? faults, AuthSession Function()? session}) {
   // с кодом 4xx попал бы в журнал дважды — сначала как ответ, потом
   // как отказ, отправленный по ветке ошибок. Обновление токена стоит
   // после журнала, чтобы ответ 401 в журнал попал. Повтор стоит
-  // последним: он должен видеть уже разобранный отказ.
+  // последним: он должен видеть уже разобранный отказ. Состояние связи
+  // стоит первым: ему нужен каждый ответ, в том числе с кодом 4xx,
+  // до того как разбор ошибок отправит его по ветке отказов.
+  if (connection != null) {
+    dio.interceptors.add(_ConnectionInterceptor(connection));
+  }
   dio.interceptors.add(_AuthInterceptor(session));
   if (faults != null) dio.interceptors.add(_FaultInterceptor(faults));
   dio.interceptors.add(_ErrorInterceptor());
@@ -47,6 +57,40 @@ abstract interface class AuthSession {
 
   /// Завершение сессии после отказа в обновлении.
   Future<void> expire();
+}
+
+/// Сообщение о связи с сервером. Любой ответ сервера, даже с кодом
+/// ошибки, означает, что связь есть; «связи нет» — только когда ответа
+/// не было вовсе.
+class _ConnectionInterceptor extends Interceptor {
+  _ConnectionInterceptor(this._connection);
+
+  final ConnectionNotifier _connection;
+
+  @override
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
+    _connection.reportSuccess();
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException error, ErrorInterceptorHandler handler) {
+    if (error.response != null) {
+      _connection.reportSuccess();
+    } else if (switch (error.type) {
+      DioExceptionType.connectionError ||
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.receiveTimeout ||
+      DioExceptionType.sendTimeout => true,
+      _ => false,
+    }) {
+      _connection.reportFailure();
+    }
+    handler.next(error);
+  }
 }
 
 /// Заголовок авторизации на каждый запрос. Сессия передаётся функцией:
