@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:service_desk/screens/login_screen.dart';
 import 'package:service_desk/state/auth_notifier.dart';
+import 'package:service_desk/state/connection_notifier.dart';
+import 'package:service_desk/widgets/connection_banner.dart';
 import 'package:service_desk/widgets/entity_table.dart';
 
 import 'support/test_app.dart';
@@ -64,6 +66,43 @@ void main() {
         reason: label,
       );
     }
+    semantics.dispose();
+  });
+
+  testWidgets('полоса о пропаже связи видна экранному чтецу', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final connection = ConnectionNotifier(
+      probe: () async => false,
+      probeInterval: const Duration(hours: 1),
+    );
+    addTearDown(connection.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ConnectionNotifier>.value(
+        value: connection,
+        child: MaterialApp(
+          builder: (context, child) => ConnectionBanner(child: child!),
+          home: const Scaffold(body: Text('Экран раздела')),
+        ),
+      ),
+    );
+    connection.reportFailure();
+    await tester.pump();
+
+    // Полоса стоит над навигатором; барьер страницы не должен её скрывать.
+    expect(
+      find.bySemanticsLabel(RegExp('Нет связи с сервером')),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Экран раздела'), findsOneWidget);
+
+    connection.reportSuccess();
+    await tester.pump();
+    expect(
+      find.bySemanticsLabel(RegExp('Связь с сервером восстановлена')),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 3));
     semantics.dispose();
   });
 

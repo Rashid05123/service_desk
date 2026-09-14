@@ -84,7 +84,17 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
             icon: Icons.cloud_done_outlined,
             text: 'Связь с сервером восстановлена, данные обновлены.',
           ),
-        Expanded(child: widget.child),
+        // Собственная граница доступности вокруг навигатора. Страница
+        // навигатора ставит под собой барьер с BlockSemantics, и он
+        // скрывал от экранного чтеца всё нарисованное раньше в той же
+        // границе — то есть саму полосу: liveRegion объявлять было нечего.
+        Expanded(
+          child: Semantics(
+            container: true,
+            explicitChildNodes: true,
+            child: widget.child,
+          ),
+        ),
       ],
     );
   }
