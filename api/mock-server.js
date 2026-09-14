@@ -19,6 +19,14 @@
  * Учебные возможности:
  *   ?__delay=1500   задержка ответа в миллисекундах (индикатор загрузки)
  *   ?__fail=500     принудительный код ошибки (обработка ошибок)
+ *
+ * Вход в систему и роли (ПР5):
+ *   --ttl 60            срок жизни токена доступа в секундах, по умолчанию 900
+ *   --refresh-ttl 600   срок жизни токена обновления, по умолчанию неделя
+ *
+ * Токены обновления хранятся в памяти: после перезапуска сервера ни один
+ * из выданных ранее не действует. Этим проверяется выход из системы при
+ * неудачном обновлении токена.
  */
 
 'use strict';
@@ -26,6 +34,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 // ─────────────────────────── параметры запуска ───────────────────────────
 
@@ -47,13 +56,84 @@ const ORIGINS = arg('origin', 'http://localhost:5555,http://127.0.0.1:5555')
 
 const SEED_PATH = path.join(__dirname, 'seed.json');
 
+const ACCESS_TTL = Number(arg('ttl', 900));
+const REFRESH_TTL = Number(arg('refresh-ttl', 60 * 60 * 24 * 7));
+
+// Ключ подписи. На учебном сервере он постоянный, поэтому токен доступа
+// переживает перезапуск, а токен обновления — нет: список выданных
+// токенов обновления живёт в памяти.
+const SECRET = 'service-desk-учебный-ключ';
+
+// ─────────────────────────────── токены ───────────────────────────────
+//
+// Формат упрощён по сравнению с JWT, но устроен так же: полезная нагрузка
+// в base64url и подпись HMAC-SHA256. Клиент может прочитать нагрузку,
+// но не может изменить её так, чтобы подпись сошлась.
+
+function sign(payload) {
+  // jti делает каждый токен уникальным: два токена, выпущенные в одну
+  // секунду, иначе совпали бы побайтово, и отзыв старого токена
+  // обновления отозвал бы заодно и новый.
+  const body = Buffer.from(
+    JSON.stringify({ ...payload, jti: crypto.randomUUID() }),
+  ).toString('base64url');
+  const mac = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+
+function verify(token) {
+  if (typeof token !== 'string' || !token.includes('.')) return null;
+  const [body, mac] = token.split('.');
+  const expected = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  if (mac.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+  return payload;
+}
+
+/** Пароль хранится только в виде хеша. Хеширует сервер, а не клиент. */
+function hash(password) {
+  return crypto.createHash('sha256').update(`${SECRET}:${password}`).digest('hex');
+}
+
 // ─────────────────────────────── данные ───────────────────────────────
 
 let db = {};
 
+/**
+ * Учётные записи для проверки. Специалист связан с сотрудником
+ * поддержки, заявитель — с карточкой заявителя: от этой связи зависят
+ * «Моя очередь» и «Мои заявки».
+ */
+function seedUsers() {
+  const at = nowIso();
+  return [
+    { id: 1, username: 'admin', passwordHash: hash('admin123'),
+      fullName: 'Администратор системы', email: 'admin@sd.local',
+      role: 'admin', employeeId: null, requesterId: null, createdAt: at },
+    { id: 2, username: 'abramov', passwordHash: hash('abramov123'),
+      fullName: 'Абрамов Кирилл Сергеевич', email: 'abramov@sd.local',
+      role: 'agent', employeeId: 1, requesterId: null, createdAt: at },
+    { id: 3, username: 'grigorev', passwordHash: hash('grigorev123'),
+      fullName: 'Григорьев Пётр Петрович', email: 'grigorev@corp.local',
+      role: 'requester', employeeId: null, requesterId: 8, createdAt: at },
+  ];
+}
+
 function reset() {
   db = JSON.parse(fs.readFileSync(SEED_PATH, 'utf8'));
+  db.users = seedUsers();
+  refreshTokens.clear();
 }
+
+/** Выданные и ещё не отозванные токены обновления. */
+const refreshTokens = new Set();
 
 reset();
 
@@ -758,6 +838,416 @@ function readBody(req) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ─────────────────────────── роли и права ───────────────────────────
+//
+// Та же матрица, что в lib/core/permissions.dart. На клиенте она решает,
+// что показать; здесь — что разрешить. Совпадать они обязаны, но
+// защищает только эта: клиентскую копию пользователь может изменить.
+
+const ROLE_LABELS = {
+  requester: 'Заявитель',
+  agent: 'Специалист поддержки',
+  admin: 'Администратор',
+};
+
+const PERMISSION_LABELS = {
+  'ownTickets.view': 'просмотр собственных заявок',
+  'ownTickets.create': 'подача обращения',
+  'ownTickets.reopen': 'возврат решённой заявки в работу',
+  'queue.view': 'личная очередь исполнителя',
+  'tickets.view': 'просмотр журнала заявок',
+  'tickets.manage': 'регистрация, изменение и закрытие заявок',
+  'requesters.view': 'просмотр заявителей',
+  'requesters.manage': 'работа с карточками заявителей',
+  'employees.view': 'просмотр сотрудников поддержки',
+  'employees.manage': 'управление сотрудниками поддержки',
+  'departments.view': 'просмотр отделов',
+  'departments.manage': 'ведение справочника отделов',
+  'categories.view': 'просмотр каталога категорий',
+  'categories.manage': 'ведение каталога категорий',
+  'records.hardDelete': 'физическое удаление записей',
+  'records.restore': 'восстановление удалённых записей',
+  'users.manage': 'управление пользователями и ролями',
+  'stats.view': 'просмотр статистики',
+};
+
+const ROLE_PERMISSIONS = {
+  requester: [
+    'ownTickets.view', 'ownTickets.create', 'ownTickets.reopen',
+    'categories.view',
+  ],
+  agent: [
+    'queue.view',
+    'tickets.view', 'tickets.manage',
+    'requesters.view', 'requesters.manage',
+    'employees.view',
+    'departments.view', 'departments.manage',
+    'categories.view', 'categories.manage',
+  ],
+  admin: [
+    'tickets.view', 'requesters.view', 'employees.view', 'employees.manage',
+    'departments.view', 'categories.view',
+    'records.hardDelete', 'records.restore',
+    'users.manage', 'stats.view',
+  ],
+};
+
+const can = (user, permission) =>
+  Boolean(user && (ROLE_PERMISSIONS[user.role] || []).includes(permission));
+
+/**
+ * Пользователь по заголовку Authorization. Роль берётся из записи
+ * пользователя на сервере, а не из того, что прислал клиент: изменить
+ * её у себя в браузере можно, но на ответ сервера это не повлияет.
+ */
+function currentUser(req) {
+  const header = req.headers.authorization || '';
+  if (!header.startsWith('Bearer ')) return null;
+  const payload = verify(header.slice(7));
+  if (!payload || payload.type !== 'access') return null;
+  return (db.users || []).find((u) => u.id === payload.sub) || null;
+}
+
+/** Проверка права. Отказ уже отправлен, если вернулось false. */
+function allow(res, user, permission) {
+  if (!user) {
+    fail(res, 401, 'Требуется вход в систему');
+    return false;
+  }
+  if (!can(user, permission)) {
+    fail(
+      res,
+      403,
+      `Недостаточно прав: операция «${PERMISSION_LABELS[permission]}» ` +
+        `недоступна роли «${ROLE_LABELS[user.role]}»`,
+    );
+    return false;
+  }
+  return true;
+}
+
+function publicUser(u) {
+  return {
+    id: u.id,
+    username: u.username,
+    fullName: u.fullName,
+    email: u.email,
+    role: u.role,
+    employee: slim('employees', u.employeeId, 'fullName'),
+    requester: slim('requesters', u.requesterId, 'fullName'),
+    createdAt: u.createdAt,
+  };
+}
+
+function issueTokens(user) {
+  const now = Math.floor(Date.now() / 1000);
+  const accessToken = sign({
+    sub: user.id, role: user.role, type: 'access', exp: now + ACCESS_TTL,
+  });
+  const refreshToken = sign({
+    sub: user.id, type: 'refresh', exp: now + REFRESH_TTL,
+  });
+  refreshTokens.add(refreshToken);
+  return { accessToken, refreshToken, expiresIn: ACCESS_TTL, user: publicUser(user) };
+}
+
+const PASSWORD_SPECIAL_RE = /[^A-Za-zА-Яа-яЁё0-9\s]/;
+
+function validateRegistration(body) {
+  const errors = {};
+  const username = text(body.username).trim();
+  const password = text(body.password);
+
+  if (required(errors, 'username', username, 'Укажите логин')) {
+    if (!LOGIN_RE.test(username)) {
+      errors.username = 'Латиница в нижнем регистре, от 3 до 30 символов';
+    } else if (db.users.some((u) => u.username === username)) {
+      errors.username = `Логин ${username} уже занят`;
+    }
+  }
+  if (required(errors, 'fullName', body.fullName, 'Укажите ФИО')) {
+    length(errors, 'fullName', body.fullName, 5, 100);
+  }
+  if (required(errors, 'email', body.email, 'Укажите адрес почты')) {
+    if (!EMAIL_RE.test(text(body.email).trim())) {
+      errors.email = 'Адрес имеет вид name@example.com';
+    }
+  }
+  // Те же требования, что проверяет форма по мере ввода. Клиентская
+  // проверка избавляет от лишнего запроса, но обойти её несложно.
+  if (password.length < 8) errors.password = 'Пароль не короче восьми символов';
+  else if (!/\d/.test(password)) errors.password = 'Пароль должен содержать цифру';
+  else if (!PASSWORD_SPECIAL_RE.test(password)) {
+    errors.password = 'Пароль должен содержать специальный символ';
+  }
+  return errors;
+}
+
+/**
+ * Карточка заявителя для нового пользователя. Если карточка с таким
+ * доменным логином уже заведена специалистом, пользователь связывается
+ * с ней; иначе заводится новая, и специалист дополняет её позже.
+ */
+function requesterFor(username, body) {
+  const existing = live('requesters').find(
+    (r) => (r.account || {}).login === username,
+  );
+  if (existing && !db.users.some((u) => u.requesterId === existing.id)) {
+    return existing.id;
+  }
+  const department = live('departments')[0];
+  const created = {
+    id: nextId('requesters'),
+    fullName: text(body.fullName).trim(),
+    position: 'Не указана',
+    departmentId: department ? department.id : null,
+    account: {
+      login: username,
+      email: text(body.email).trim(),
+      phone: '',
+      office: '',
+      isBlocked: false,
+    },
+    note: 'Заведена при самостоятельной регистрации',
+    deletedAt: null,
+  };
+  rows('requesters').push(created);
+  return created.id;
+}
+
+/** Адреса /api/auth/*: вход, регистрация, обновление, текущий пользователь. */
+async function routeAuth(req, res, action, user) {
+  if (action === 'register' && req.method === 'POST') {
+    const body = await readBody(req);
+    const errors = validateRegistration(body);
+    if (Object.keys(errors).length > 0) {
+      return send(res, 422, { message: MESSAGES[422], errors });
+    }
+    const username = text(body.username).trim();
+    const created = {
+      id: (db.users || []).reduce((max, u) => Math.max(max, u.id), 0) + 1,
+      username,
+      passwordHash: hash(text(body.password)),
+      fullName: text(body.fullName).trim(),
+      email: text(body.email).trim(),
+      // Роль при регистрации не выбирается: поле role в теле запроса
+      // игнорируется, иначе любой зарегистрировался бы администратором.
+      role: 'requester',
+      employeeId: null,
+      requesterId: requesterFor(username, body),
+      createdAt: nowIso(),
+    };
+    db.users.push(created);
+    return send(res, 201, publicUser(created));
+  }
+
+  if (action === 'login' && req.method === 'POST') {
+    const body = await readBody(req);
+    const found = db.users.find((u) => u.username === text(body.username).trim());
+    // Одно сообщение на оба случая: иначе по ответу можно перебором
+    // узнать, какие логины существуют.
+    if (!found || found.passwordHash !== hash(text(body.password))) {
+      return fail(res, 401, 'Неверный логин или пароль');
+    }
+    return send(res, 200, issueTokens(found));
+  }
+
+  if (action === 'refresh' && req.method === 'POST') {
+    const body = await readBody(req);
+    const token = body.refreshToken;
+    const payload = verify(token);
+    if (!payload || payload.type !== 'refresh' || !refreshTokens.has(token)) {
+      return fail(res, 401, 'Токен обновления недействителен');
+    }
+    const found = db.users.find((u) => u.id === payload.sub);
+    if (!found) return fail(res, 401, 'Пользователь не найден');
+    // Токен обновления одноразовый: повторно предъявленный старый токен
+    // означает, что его перехватили.
+    refreshTokens.delete(token);
+    return send(res, 200, issueTokens(found));
+  }
+
+  if (action === 'me' && req.method === 'GET') {
+    if (!user) return fail(res, 401, 'Требуется вход в систему');
+    return send(res, 200, publicUser(user));
+  }
+
+  if (action === 'logout' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body.refreshToken) refreshTokens.delete(body.refreshToken);
+    return send(res, 204);
+  }
+
+  return fail(res, 404, 'Неизвестный адрес');
+}
+
+/** Заявки текущего пользователя и его рабочая очередь: /api/my/*. */
+async function routeMy(req, res, segments, user) {
+  const [, , what, idText, action] = segments;
+  const byNewest = (a, b) => text(b.createdAt).localeCompare(text(a.createdAt));
+  const envelope = (items) => ({
+    items: items.map(EXPAND.tickets),
+    page: 1,
+    size: items.length,
+    total: items.length,
+    totalPages: 1,
+  });
+
+  if (what === 'tickets' && !idText && req.method === 'GET') {
+    if (!allow(res, user, 'ownTickets.view')) return;
+    const own = live('tickets')
+      .filter((t) => user.requesterId != null && t.requesterId === user.requesterId)
+      .sort(byNewest);
+    return send(res, 200, envelope(own));
+  }
+
+  if (what === 'tickets' && !idText && req.method === 'POST') {
+    if (!allow(res, user, 'ownTickets.create')) return;
+    if (user.requesterId == null) {
+      return fail(res, 409, 'Учётная запись не связана с карточкой заявителя');
+    }
+    const body = await readBody(req);
+    const category = byId('categories', num(body.categoryId));
+    const createdAt = new Date();
+    const dueAt = new Date(
+      createdAt.getTime() + ((category && category.slaHours) || 24) * 3600 * 1000,
+    );
+    const max = rows('tickets').reduce(
+      (acc, t) => Math.max(acc, Number(text(t.number).replace(/\D/g, '')) || 0),
+      0,
+    );
+    // Номер, заявитель, статус и сроки заявитель не выбирает: их
+    // назначает сервер, что бы ни пришло в теле запроса.
+    const draft = {
+      number: `SD-${String(max + 1).padStart(6, '0')}`,
+      subject: body.subject,
+      description: body.description,
+      categoryId: body.categoryId,
+      priority: ['low', 'normal', 'high'].includes(body.priority)
+        ? body.priority
+        : 'normal',
+      status: 'new',
+      assigneeId: null,
+      coworkerIds: [],
+      requesterId: user.requesterId,
+      createdAt: createdAt.toISOString(),
+      dueAt: dueAt.toISOString(),
+    };
+    const errors = VALIDATORS.tickets(draft, null);
+    if (Object.keys(errors).length > 0) {
+      return send(res, 422, { message: MESSAGES[422], errors });
+    }
+    const created = {
+      id: nextId('tickets'),
+      ...NORMALIZE.tickets(draft, null),
+      deletedAt: null,
+    };
+    rows('tickets').push(created);
+    return send(res, 201, EXPAND.tickets(created));
+  }
+
+  if (what === 'tickets' && idText && action === 'reopen' && req.method === 'POST') {
+    if (!allow(res, user, 'ownTickets.reopen')) return;
+    const ticket = byId('tickets', num(idText));
+    // Чужая заявка отвечает так же, как несуществующая: заявителю
+    // незачем знать, что заявка с таким номером есть.
+    if (!ticket || ticket.deletedAt != null || ticket.requesterId !== user.requesterId) {
+      return fail(res, 404, 'Заявка не найдена');
+    }
+    if (ticket.status !== 'resolved') {
+      return fail(res, 409, 'Вернуть в работу можно только решённую заявку');
+    }
+    ticket.status = 'in_progress';
+    return send(res, 200, EXPAND.tickets(ticket));
+  }
+
+  if (what === 'queue' && req.method === 'GET') {
+    if (!allow(res, user, 'queue.view')) return;
+    const mine = live('tickets')
+      .filter(
+        (t) =>
+          user.employeeId != null &&
+          (t.assigneeId === user.employeeId ||
+            (t.coworkerIds || []).includes(user.employeeId)) &&
+          t.status !== 'resolved' &&
+          t.status !== 'closed',
+      )
+      .sort((a, b) => text(a.dueAt).localeCompare(text(b.dueAt)));
+    return send(res, 200, envelope(mine));
+  }
+
+  return fail(res, 404, 'Неизвестный адрес');
+}
+
+/** Пользователи и роли: только администратор. */
+async function routeUsers(req, res, idText, user) {
+  if (!allow(res, user, 'users.manage')) return;
+
+  if (!idText && req.method === 'GET') {
+    const items = db.users.map(publicUser);
+    return send(res, 200, {
+      items, page: 1, size: items.length, total: items.length, totalPages: 1,
+    });
+  }
+
+  const target = db.users.find((u) => u.id === num(idText));
+  if (!target) return fail(res, 404, 'Пользователь не найден');
+
+  if (req.method === 'PUT') {
+    const body = await readBody(req);
+    if (!ROLE_LABELS[body.role]) {
+      return send(res, 422, {
+        message: MESSAGES[422],
+        errors: { role: 'Неизвестная роль' },
+      });
+    }
+    if (target.id === user.id && body.role !== user.role) {
+      return fail(res, 409, 'Нельзя изменить собственную роль: система останется без администратора');
+    }
+    target.role = body.role;
+    return send(res, 200, publicUser(target));
+  }
+
+  return fail(res, 400, `Метод ${req.method} здесь не поддерживается`);
+}
+
+function statistics() {
+  const tickets = live('tickets');
+  const countBy = (list, key) =>
+    list.reduce((acc, item) => {
+      acc[item[key]] = (acc[item[key]] || 0) + 1;
+      return acc;
+    }, {});
+  const now = Date.now();
+  return {
+    tickets: {
+      total: tickets.length,
+      byStatus: countBy(tickets, 'status'),
+      byPriority: countBy(tickets, 'priority'),
+      overdue: tickets.filter(
+        (t) =>
+          new Date(t.dueAt).getTime() < now &&
+          t.status !== 'resolved' &&
+          t.status !== 'closed',
+      ).length,
+      unassigned: tickets.filter((t) => t.assigneeId == null).length,
+    },
+    byCategory: live('categories').map((c) => ({
+      id: c.id,
+      name: c.name,
+      count: tickets.filter((t) => t.categoryId === c.id).length,
+    })),
+    deleted: Object.fromEntries(
+      COLLECTION_NAMES.map((c) => [
+        c,
+        rows(c).filter((r) => r.deletedAt != null).length,
+      ]),
+    ),
+    users: countBy(db.users, 'role'),
+    activeSessions: refreshTokens.size,
+  };
+}
+
 // ─────────────────────────────── маршруты ───────────────────────────────
 
 async function route(req, res, url) {
@@ -782,6 +1272,9 @@ async function route(req, res, url) {
         COLLECTION_NAMES.map((c) => [c, rows(c).length]),
       ),
       origins: ORIGINS,
+      users: (db.users || []).length,
+      accessTtl: ACCESS_TTL,
+      refreshTtl: REFRESH_TTL,
     });
   }
 
@@ -790,10 +1283,36 @@ async function route(req, res, url) {
     return send(res, 200, { status: 'reset' });
   }
 
+  const user = currentUser(req);
+  req.user = user;
+
+  if (first === 'auth') return routeAuth(req, res, second, user);
+
+  // Всё, что ниже, — только для вошедших. Неизвестный токен и истёкший
+  // токен неразличимы: в обоих случаях 401, и клиент пробует обновить
+  // токен.
+  if (!user) return fail(res, 401, 'Требуется вход в систему');
+
+  if (first === 'my') return routeMy(req, res, segments, user);
+  if (first === 'users') return routeUsers(req, res, second, user);
+  if (first === 'stats' && req.method === 'GET') {
+    if (!allow(res, user, 'stats.view')) return;
+    return send(res, 200, statistics());
+  }
+
   const collection = first;
   if (!COLLECTION_NAMES.includes(collection)) {
     return fail(res, 404, 'Неизвестная коллекция');
   }
+
+  // Какое право нужно запросу. Удаление бывает двух видов, и физическое
+  // требует другой роли, чем логическое.
+  const mutating = req.method !== 'GET';
+  let permission = `${collection}.${mutating ? 'manage' : 'view'}`;
+  if (req.method === 'DELETE' && query.hard === 'true') permission = 'records.hardDelete';
+  if (third === 'restore') permission = 'records.restore';
+  if (second === 'next-number') permission = 'tickets.manage';
+  if (!allow(res, user, permission)) return;
 
   // Свободный регистрационный номер. Разбирается раньше адреса записи:
   // иначе «next-number» будет принят за идентификатор.
@@ -902,9 +1421,10 @@ const server = http.createServer(async (req, res) => {
 
   const started = Date.now();
   res.on('finish', () => {
+    const who = req.user ? `${req.user.username}/${req.user.role}` : 'без входа';
     console.log(
       `${req.method} ${url.pathname}${url.search} → ${res.statusCode}` +
-        ` (${Date.now() - started} мс, источник ${req.headers.origin || '—'})`,
+        ` (${Date.now() - started} мс, ${who})`,
     );
   });
 
