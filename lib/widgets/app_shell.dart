@@ -144,7 +144,7 @@ class AppShell extends StatelessWidget {
         body: Column(
           children: [
             const _SessionHeader(compact: true),
-            Expanded(child: child),
+            Expanded(child: _ContentBoundary(child: child)),
           ],
         ),
       );
@@ -177,13 +177,32 @@ class AppShell extends StatelessWidget {
                   ],
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: child),
+                Expanded(child: _ContentBoundary(child: child)),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+/// Граница доступности вокруг содержимого раздела.
+///
+/// Экран раздела живёт во вложенном навигаторе ShellRoute, а страница
+/// навигатора ставит под собой барьер с BlockSemantics. Такой барьер
+/// скрывает от экранного чтеца всё, что нарисовано раньше него внутри той
+/// же границы, — то есть шапку и полосу навигации: человек с экранным
+/// чтецом не мог бы ни перейти в другой раздел, ни выйти из системы.
+/// Собственная граница ограничивает действие барьера содержимым раздела.
+class _ContentBoundary extends StatelessWidget {
+  const _ContentBoundary({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(container: true, explicitChildNodes: true, child: child);
   }
 }
 
