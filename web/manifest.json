@@ -1,12 +1,12 @@
 {
-    "name": "service_desk",
-    "short_name": "service_desk",
+    "name": "Служба технической поддержки",
+    "short_name": "Service Desk",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F5FAFC",
+    "theme_color": "#16607A",
+    "description": "Учёт заявок в техподдержку: обращения, очередь исполнителя, справочники и роли.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
