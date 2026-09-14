@@ -13,35 +13,40 @@ import '../repositories/employee_repository.dart';
 import '../repositories/requester_repository.dart';
 import '../repositories/ticket_repository.dart';
 import '../screens/category_detail_screen.dart';
-import '../screens/category_form_screen.dart';
 import '../screens/category_list_screen.dart';
 import '../screens/department_detail_screen.dart';
-import '../screens/department_form_screen.dart';
 import '../screens/department_list_screen.dart';
 import '../screens/employee_detail_screen.dart';
-import '../screens/employee_form_screen.dart';
 import '../screens/employee_list_screen.dart';
 import '../screens/forbidden_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
-import '../screens/my_ticket_form_screen.dart';
 import '../screens/my_tickets_screen.dart';
 import '../screens/not_found_screen.dart';
 import '../screens/queue_screen.dart';
-import '../screens/register_screen.dart';
 import '../screens/requester_detail_screen.dart';
-import '../screens/requester_form_screen.dart';
 import '../screens/requester_list_screen.dart';
-import '../screens/stats_screen.dart';
 import '../screens/ticket_detail_screen.dart';
-import '../screens/ticket_form_screen.dart';
 import '../screens/ticket_list_screen.dart';
-import '../screens/users_screen.dart';
 import '../state/auth_notifier.dart';
 import '../state/detail_notifier.dart';
 import '../state/reference_data_notifier.dart';
 import '../widgets/app_shell.dart';
+import '../widgets/deferred_screen.dart';
 import 'route_guard.dart';
+
+// Отложенная загрузка (ПР6): формы, регистрация и экраны администратора
+// нужны не каждому и не при каждом входе. Их код уходит из main.dart.js
+// в отдельные части и скачивается при первом переходе на экран.
+import '../screens/category_form_screen.dart' deferred as category_form;
+import '../screens/department_form_screen.dart' deferred as department_form;
+import '../screens/employee_form_screen.dart' deferred as employee_form;
+import '../screens/my_ticket_form_screen.dart' deferred as my_ticket_form;
+import '../screens/register_screen.dart' deferred as register;
+import '../screens/requester_form_screen.dart' deferred as requester_form;
+import '../screens/stats_screen.dart' deferred as stats;
+import '../screens/ticket_form_screen.dart' deferred as ticket_form;
+import '../screens/users_screen.dart' deferred as users;
 
 /// Схема маршрутов с защитой.
 ///
@@ -68,7 +73,11 @@ GoRouter buildRouter(AuthNotifier auth) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterScreen(),
+        builder: (context, state) => DeferredScreen(
+          name: 'register',
+          load: register.loadLibrary,
+          builder: (_) => register.RegisterScreen(),
+        ),
       ),
 
       // Общий каркас с шапкой и навигацией по разделам роли.
@@ -89,7 +98,11 @@ GoRouter buildRouter(AuthNotifier auth) {
           ),
           GoRoute(
             path: '/my/new',
-            builder: (context, state) => const MyTicketFormScreen(),
+            builder: (context, state) => DeferredScreen(
+              name: 'my_ticket_form',
+              load: my_ticket_form.loadLibrary,
+              builder: (_) => my_ticket_form.MyTicketFormScreen(),
+            ),
           ),
 
           // Специалист поддержки.
@@ -101,11 +114,19 @@ GoRouter buildRouter(AuthNotifier auth) {
           // Администратор.
           GoRoute(
             path: '/admin/users',
-            builder: (context, state) => const UsersScreen(),
+            builder: (context, state) => DeferredScreen(
+              name: 'users',
+              load: users.loadLibrary,
+              builder: (_) => users.UsersScreen(),
+            ),
           ),
           GoRoute(
             path: '/admin/stats',
-            builder: (context, state) => const StatsScreen(),
+            builder: (context, state) => DeferredScreen(
+              name: 'stats',
+              load: stats.loadLibrary,
+              builder: (_) => stats.StatsScreen(),
+            ),
           ),
 
           ..._entityRoutes<Ticket>(
@@ -113,7 +134,11 @@ GoRouter buildRouter(AuthNotifier auth) {
             name: 'tickets',
             list: const TicketListScreen(),
             detail: const TicketDetailScreen(),
-            form: (id) => TicketFormScreen(id: id),
+            form: (id) => DeferredScreen(
+              name: 'ticket_form',
+              load: ticket_form.loadLibrary,
+              builder: (_) => ticket_form.TicketFormScreen(id: id),
+            ),
             loader: (context) => context.read<TicketRepository>().findById,
           ),
           ..._entityRoutes<Employee>(
@@ -121,7 +146,11 @@ GoRouter buildRouter(AuthNotifier auth) {
             name: 'employees',
             list: const EmployeeListScreen(),
             detail: const EmployeeDetailScreen(),
-            form: (id) => EmployeeFormScreen(id: id),
+            form: (id) => DeferredScreen(
+              name: 'employee_form',
+              load: employee_form.loadLibrary,
+              builder: (_) => employee_form.EmployeeFormScreen(id: id),
+            ),
             loader: (context) => context.read<EmployeeRepository>().findById,
           ),
           ..._entityRoutes<Requester>(
@@ -129,7 +158,11 @@ GoRouter buildRouter(AuthNotifier auth) {
             name: 'requesters',
             list: const RequesterListScreen(),
             detail: const RequesterDetailScreen(),
-            form: (id) => RequesterFormScreen(id: id),
+            form: (id) => DeferredScreen(
+              name: 'requester_form',
+              load: requester_form.loadLibrary,
+              builder: (_) => requester_form.RequesterFormScreen(id: id),
+            ),
             loader: (context) => context.read<RequesterRepository>().findById,
           ),
           ..._entityRoutes<Department>(
@@ -137,7 +170,11 @@ GoRouter buildRouter(AuthNotifier auth) {
             name: 'departments',
             list: const DepartmentListScreen(),
             detail: const DepartmentDetailScreen(),
-            form: (id) => DepartmentFormScreen(id: id),
+            form: (id) => DeferredScreen(
+              name: 'department_form',
+              load: department_form.loadLibrary,
+              builder: (_) => department_form.DepartmentFormScreen(id: id),
+            ),
             loader: (context) => context.read<DepartmentRepository>().findById,
           ),
           ..._entityRoutes<TicketCategory>(
@@ -145,7 +182,11 @@ GoRouter buildRouter(AuthNotifier auth) {
             name: 'categories',
             list: const CategoryListScreen(),
             detail: const CategoryDetailScreen(),
-            form: (id) => CategoryFormScreen(id: id),
+            form: (id) => DeferredScreen(
+              name: 'category_form',
+              load: category_form.loadLibrary,
+              builder: (_) => category_form.CategoryFormScreen(id: id),
+            ),
             loader: (context) => context.read<CategoryRepository>().findById,
           ),
         ],

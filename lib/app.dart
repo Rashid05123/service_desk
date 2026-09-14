@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/ru_localizations.dart';
 import 'widgets/connection_banner.dart';
 import 'widgets/session_guard.dart';
 
@@ -40,12 +40,10 @@ class ServiceDeskApp extends StatelessWidget {
       ),
       // Русская локаль для календаря в выборе даты.
       locale: const Locale('ru'),
-      supportedLocales: const [Locale('ru'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      // Только русский: делегаты всех языков тянули в сборку переводы
+      // и таблицы дат восьмидесяти языков (см. core/ru_localizations.dart).
+      supportedLocales: const [Locale('ru')],
+      localizationsDelegates: ruLocalizationsDelegates,
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,
