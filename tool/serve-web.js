@@ -18,8 +18,12 @@ const path = require('node:path');
 const args = process.argv.slice(2);
 const portIndex = args.indexOf('--port');
 const PORT = Number(portIndex !== -1 ? args[portIndex + 1] : 5555);
-const ROOT = process.env.WEB_ROOT
-  ? path.resolve(process.env.WEB_ROOT)
+// Каталог задаётся флагом --root или переменной WEB_ROOT: так же
+// раздаётся копия сайта Pages с подкаталогом /service_desk/.
+const rootIndex = args.indexOf('--root');
+const ROOT_ARG = rootIndex !== -1 ? args[rootIndex + 1] : process.env.WEB_ROOT;
+const ROOT = ROOT_ARG
+  ? path.resolve(ROOT_ARG)
   : path.join(__dirname, '..', 'build', 'web');
 
 const TYPES = {

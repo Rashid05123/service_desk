@@ -22,7 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -43,9 +43,12 @@ jobs:
         run: flutter test
 
       # Адрес API берётся из переменной репозитория API_BASE_URL
-      # (Settings → Secrets and variables → Actions → Variables). Если она
-      # не задана, сборка обращается к учебному серверу на машине того,
-      # кто открыл страницу.
+      # (Settings → Secrets and variables → Actions → Variables) — это
+      # настоящий сервер по HTTPS. Если переменная не задана, в сборку
+      # встраивается учебный сервер: api/mock-server.js работает в service
+      # worker той же страницы по адресу <сайт>/service_desk/api. Сервер на
+      # машине проверяющего не годится: страница по HTTPS к нему не
+      # обратится, браузер блокирует такие запросы.
       #
       # Базовый путь — имя репозитория: Pages публикует проект по адресу
       # https://<пользователь>.github.io/<репозиторий>/.
@@ -56,13 +59,17 @@ jobs:
       # работает в один поток, и выигрыш в объёме не окупает задержку.
       - name: Сборка
         env:
-          API_BASE_URL: ${{ vars.API_BASE_URL || 'http://localhost:8080/api' }}
+          EXTERNAL_API: ${{ vars.API_BASE_URL }}
+          API_BASE_URL: ${{ vars.API_BASE_URL || format('https://{0}.github.io/{1}/api', github.repository_owner, github.event.repository.name) }}
           BASE_HREF: /${{ github.event.repository.name }}/
         run: |
           flutter build web --release \
             --base-href "$BASE_HREF" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
           node tool/trim-web-build.js build/web
+          if [ -z "$EXTERNAL_API" ]; then
+            node tool/build-demo-api.js build/web
+          fi
 
       # Pages не перенаправляет неизвестные пути на index.html, но при
       # отсутствии файла отдаёт 404.html. Копия index.html под этим именем
@@ -72,7 +79,7 @@ jobs:
           cp build/web/index.html build/web/404.html
           touch build/web/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build/web
 
@@ -87,4 +94,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
