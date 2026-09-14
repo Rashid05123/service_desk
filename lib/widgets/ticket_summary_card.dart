@@ -53,9 +53,18 @@ class TicketSummaryCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Метки отдельной строкой в Wrap. В одной строке с номером
+              // и темой «Критический» и «Ожидает ответа» на телефоне 360 не
+              // помещались: строка переполнялась на 30 пикселей вправо,
+              // что видно только в отладочной сборке.
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
                   priorityChip(context, ticket.priority),
-                  const SizedBox(width: 6),
                   statusChip(context, ticket.status),
                 ],
               ),

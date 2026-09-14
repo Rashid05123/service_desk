@@ -341,48 +341,57 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.filters != null) ...[
-              widget.filters!(context, query, _goWith),
-              const SizedBox(height: 4),
-            ],
-            // Wrap, а не Row: на окне 360 переключатель с подписью и кнопка
-            // сброса в одну строку не помещались, и кнопка уходила вниз
-            // отдельной строкой только благодаря переносу.
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Switch(
-                      value: query.includeDeleted,
-                      onChanged: (value) =>
-                          _goWith(query.withIncludeDeleted(value)),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Показывать удалённые записи',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                TextButton.icon(
-                  onPressed: query.hasAnyCondition
-                      ? () => _goWith(query.cleared())
-                      : null,
-                  icon: const Icon(Icons.filter_alt_off),
-                  label: const Text('Сбросить'),
-                ),
+      // Панель не выше 40 % окна и прокручивается сама. У заявок семь полей
+      // отбора, и на телефоне 360 × 780 раскрытая панель вместе с шапкой,
+      // поиском и постраничным выводом не помещалась по высоте: столбец
+      // экрана переполнялся снизу, а списку не оставалось места.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.filters != null) ...[
+                widget.filters!(context, query, _goWith),
+                const SizedBox(height: 4),
               ],
-            ),
-          ],
+              // Wrap, а не Row: на окне 360 переключатель с подписью и кнопка
+              // сброса в одну строку не помещались, и кнопка уходила вниз
+              // отдельной строкой только благодаря переносу.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: query.includeDeleted,
+                        onChanged: (value) =>
+                            _goWith(query.withIncludeDeleted(value)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Показывать удалённые записи',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    onPressed: query.hasAnyCondition
+                        ? () => _goWith(query.cleared())
+                        : null,
+                    icon: const Icon(Icons.filter_alt_off),
+                    label: const Text('Сбросить'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

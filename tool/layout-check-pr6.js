@@ -68,7 +68,9 @@ module.exports = async function script(page, { sleep, APP }) {
       text = m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text;
     }
     if (text && /overflowed|EXCEPTION CAUGHT|Another exception was thrown|Unhandled|Uncaught/.test(text)) {
-      problems.push(`${context}: ${text.split('\n').slice(0, 3).join(' | ')}`);
+      const line = `${context}: ${text.split('\n').slice(0, 3).join(' | ')}`;
+      problems.push(line);
+      console.log('!', line);
     }
   });
   await page.send('Runtime.enable');
@@ -113,13 +115,32 @@ module.exports = async function script(page, { sleep, APP }) {
     // Отладочная сборка: сотни модулей, первый кадр — десятки секунд.
     await page.open(APP + '/', 45000);
 
-    for (const route of role.routes) {
+    // ROUTES=/departments,/categories — повторить проверку только этих экранов.
+    const only = process.env.ROUTES ? process.env.ROUTES.split(',') : null;
+    for (const route of role.routes.filter((r) => !only || only.includes(r))) {
+      // Проверка каждого экрана начинается с ширины 1280: панель фильтров
+      // открывается на уже загруженном списке.
+      await page.resize(1280, 800, false);
       await go(route);
+      console.log(`экран ${role.username ?? 'без входа'} ${route}`);
       const withFilters = LISTS.includes(route);
       for (const pass of withFilters ? ['', ' с панелью фильтров'] : ['']) {
         if (pass) {
-          await page.enableSemantics();
-          await page.clickText('Фильтры', { exact: true, wait: 1500 });
+          // Список мог ещё загружаться: кнопка ждётся до десяти секунд.
+          let opened = false;
+          for (let i = 0; i < 20 && !opened; i++) {
+            await page.enableSemantics();
+            if ((await page.locate('Фильтры')).length > 0) {
+              await page.clickText('Фильтры', { wait: 1500 });
+              opened = true;
+            } else {
+              await sleep(500);
+            }
+          }
+          if (!opened) {
+            console.log(`? ${role.username} ${route}: панель фильтров открыть не удалось`);
+            continue;
+          }
         }
         for (const [width, height] of WIDTHS) {
           context = `${role.username ?? 'без входа'} ${route} ${width}${pass}`;
