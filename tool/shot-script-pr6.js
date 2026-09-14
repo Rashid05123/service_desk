@@ -21,6 +21,8 @@ const path = require('node:path');
  *
  *   node tool/serve-web.js --port 5555
  *   node tool/shots.js "папка для снимков" tool/shot-script-pr6.js
+ *
+ * Продолжить с раздела после сбоя: FROM=dialog node tool/shots.js …
  */
 
 const SERVER = path.join(__dirname, '..', 'api', 'mock-server.js');
@@ -31,6 +33,11 @@ const API_PORT = process.env.API_PORT || '8080';
 
 /** Высота окна для каждой ширины: телефон, планшет, ноутбук, монитор. */
 const HEIGHT = { 360: 780, 768: 1024, 1280: 800, 1920: 1080 };
+
+const SECTIONS = [
+  'login', 'home', 'tickets', 'ticket', 'queue', 'dialog',
+  'requester', 'admin', 'splash', 'offline', 'http-server',
+];
 
 function stopServer() {
   execSync(
@@ -52,6 +59,7 @@ function startServer() {
 module.exports = async function script(page, { sleep, APP }) {
   // ── журнал ошибок консоли ────────────────────────────────────────────
   const problems = [];
+  const marks = {};
   page.ws.addEventListener('message', (event) => {
     const m = JSON.parse(event.data);
     if (m.method === 'Runtime.exceptionThrown') {
@@ -71,6 +79,15 @@ module.exports = async function script(page, { sleep, APP }) {
   });
   await page.send('Runtime.enable');
   await page.send('Log.enable');
+
+  // Светлая тема независимо от настроек системы: снимки идут в отчёт,
+  // который печатается на белой бумаге.
+  await page.send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-color-scheme', value: 'light' }],
+  });
+
+  const from = SECTIONS.indexOf(process.env.FROM || 'login');
+  const run = (name) => SECTIONS.indexOf(name) >= from;
 
   const at = async (width, wait = 1500) => {
     await page.resize(width, HEIGHT[width], false);
@@ -119,152 +136,197 @@ module.exports = async function script(page, { sleep, APP }) {
   await sleep(1500);
 
   // ── вход ─────────────────────────────────────────────────────────────
-  await at(360);
-  await page.open(APP + '/login', 3000);
-  await page.eval('localStorage.clear()');
-  await page.open(APP + '/login', 5000);
-  await page.shot('01-login-360');
-  await at(1280);
-  await page.shot('02-login-1280');
+  if (run('login')) {
+    await at(360);
+    await page.open(APP + '/login', 3000);
+    await page.eval('localStorage.clear()');
+    await page.open(APP + '/login', 5000);
+    await page.shot('01-login-360');
+    await at(1280);
+    await page.shot('02-login-1280');
+  }
 
   // ── главная: четыре ширины на одной странице ─────────────────────────
-  await sessionFromApi('abramov', 'abramov123');
-  await at(360);
-  await page.open(APP + '/', 6000);
-  await page.shot('03-home-360');
-  await at(768);
-  await page.shot('04-home-768');
-  await at(1280);
-  await page.shot('05-home-1280');
-  await at(1920);
-  await page.shot('06-home-1920');
+  if (run('home')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(360);
+    await page.open(APP + '/', 6000);
+    await page.shot('03-home-360');
+    await at(768);
+    await page.shot('04-home-768');
+    await at(1280);
+    await page.shot('05-home-1280');
+    await at(1920);
+    await page.shot('06-home-1920');
+  }
 
   // ── журнал заявок: обратный порядок ширин, тоже без перезагрузки ─────
-  await page.open(APP + '/tickets', 6000);
-  await page.shot('07-tickets-1920');
-  await at(1280);
-  await page.shot('08-tickets-1280');
-  await at(768);
-  await page.shot('09-tickets-768');
-  await at(360);
-  await page.shot('10-tickets-360');
+  if (run('tickets')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(1920);
+    await page.open(APP + '/tickets', 6000);
+    await page.shot('07-tickets-1920');
+    await at(1280);
+    await page.shot('08-tickets-1280');
+    await at(768);
+    await page.shot('09-tickets-768');
+    await at(360);
+    await page.shot('10-tickets-360');
 
-  await page.enableSemantics();
-  await page.clickText('Ещё', { exact: true, wait: 1500 });
-  await page.shot('11-more-360');
+    await page.enableSemantics();
+    await page.clickText('Ещё', { exact: true, wait: 1500 });
+    await page.shot('11-more-360');
 
-  await page.open(APP + '/tickets', 5000);
-  await page.enableSemantics();
-  await page.clickText('Фильтры', { exact: true, wait: 1500 });
-  await page.shot('12-filters-360');
+    await page.open(APP + '/tickets', 5000);
+    await page.enableSemantics();
+    await page.clickText('Фильтры', { exact: true, wait: 1500 });
+    await page.shot('12-filters-360');
+  }
 
   // ── карточка и форма заявки ──────────────────────────────────────────
-  await page.open(APP + '/tickets/5', 5000);
-  await page.shot('13-ticket-360');
-  await at(1280);
-  await page.shot('14-ticket-1280');
+  if (run('ticket')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(360);
+    await page.open(APP + '/tickets/5', 5000);
+    await page.shot('13-ticket-360');
+    await at(1280);
+    await page.shot('14-ticket-1280');
 
-  await page.open(APP + '/tickets/5/edit', 6000);
-  await page.shot('15-ticket-form-1280');
-  await at(360);
-  await page.shot('16-ticket-form-360');
+    await page.open(APP + '/tickets/5/edit', 6000);
+    await page.shot('15-ticket-form-1280');
+    await at(360);
+    await page.shot('16-ticket-form-360');
+  }
 
   // ── очередь специалиста ──────────────────────────────────────────────
-  await page.open(APP + '/queue', 5000);
-  await page.shot('17-queue-360');
-  await at(1280);
-  await page.shot('18-queue-1280');
+  if (run('queue')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(360);
+    await page.open(APP + '/queue', 5000);
+    await page.shot('17-queue-360');
+    await at(1280);
+    await page.shot('18-queue-1280');
+  }
 
   // ── диалог на мониторе 1920 не растягивается ─────────────────────────
-  await at(1920);
-  await page.open(APP + '/tickets', 6000);
-  await page.enableSemantics();
-  await page.clickText('Удалить (логически)', { wait: 1500 });
-  await page.shot('19-dialog-1920');
+  if (run('dialog')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(1920);
+    await page.open(APP + '/tickets', 6000);
+    await page.enableSemantics();
+    await page.clickText('Удалить (логически)', { wait: 1500 });
+    await page.shot('19-dialog-1920');
+  }
 
   // ── заявитель ────────────────────────────────────────────────────────
-  await sessionFromApi('grigorev', 'grigorev123');
-  await at(360);
-  await page.open(APP + '/my', 6000);
-  await page.shot('20-my-360');
-  await at(1280);
-  await page.shot('21-my-1280');
+  if (run('requester')) {
+    await sessionFromApi('grigorev', 'grigorev123');
+    await at(360);
+    await page.open(APP + '/my', 6000);
+    await page.shot('20-my-360');
+    await at(1280);
+    await page.shot('21-my-1280');
+  }
 
   // ── администратор ────────────────────────────────────────────────────
-  await sessionFromApi('admin', 'admin123');
-  await at(360);
-  await page.open(APP + '/admin/stats', 6000);
-  await page.shot('22-stats-360');
-  await at(1280);
-  await page.shot('23-stats-1280');
-  await page.open(APP + '/admin/users', 6000);
-  await page.shot('24-users-1280');
-  await at(360);
-  await page.shot('25-users-360');
+  if (run('admin')) {
+    await sessionFromApi('admin', 'admin123');
+    await at(360);
+    await page.open(APP + '/admin/stats', 6000);
+    await page.shot('22-stats-360');
+    await at(1280);
+    await page.shot('23-stats-1280');
+    await page.open(APP + '/admin/users', 6000);
+    await page.shot('24-users-1280');
+    await at(360);
+    await page.shot('25-users-360');
+  }
 
-  const adaptiveProblems = problems.length;
+  marks.adaptive = problems.length;
 
   // ── заглушка начальной загрузки ──────────────────────────────────────
   // Сеть замедлена до 4 Мбит/с, кэш выключен: заглушка видна, пока
   // скачивается main.dart.js.
-  await at(1280);
-  await page.send('Network.enable');
-  await page.send('Network.setCacheDisabled', { cacheDisabled: true });
-  await page.send('Network.emulateNetworkConditions', {
-    offline: false,
-    latency: 150,
-    downloadThroughput: 500000,
-    uploadThroughput: 500000,
-  });
-  await page.send('Page.navigate', { url: APP + '/login' });
-  await sleep(1500);
-  await page.shot('26-splash');
-  await sleep(20000);
-  await page.send('Network.emulateNetworkConditions', {
-    offline: false,
-    latency: 0,
-    downloadThroughput: -1,
-    uploadThroughput: -1,
-  });
-  await page.send('Network.setCacheDisabled', { cacheDisabled: false });
+  if (run('splash')) {
+    await at(1280);
+    await page.send('Network.enable');
+    await page.send('Network.setCacheDisabled', { cacheDisabled: true });
+    await page.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 150,
+      downloadThroughput: 500000,
+      uploadThroughput: 500000,
+    });
+    await page.send('Page.navigate', { url: APP + '/login' });
+    await sleep(1500);
+    await page.shot('26-splash');
+    await sleep(20000);
+    await page.send('Network.emulateNetworkConditions', {
+      offline: false,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
+    });
+    await page.send('Network.setCacheDisabled', { cacheDisabled: false });
+  }
+
+  marks.splash = problems.length;
 
   // ── пропажа и возвращение связи ──────────────────────────────────────
-  await sessionFromApi('abramov', 'abramov123');
-  await page.open(APP + '/tickets', 6000);
-  const beforeOffline = problems.length;
-  stopServer();
-  await sleep(1000);
-  await page.enableSemantics();
-  await page.clickText('Обновить', { wait: 500 });
-  if (!(await waitFor('Нет связи с сервером'))) {
-    throw new Error('сообщение о пропаже связи не появилось');
-  }
-  await sleep(800);
-  await page.shot('27-offline');
+  if (run('offline')) {
+    await sessionFromApi('abramov', 'abramov123');
+    await at(1280);
+    await page.open(APP + '/tickets', 6000);
+    marks.beforeOffline = problems.length;
+    stopServer();
+    await sleep(1000);
+    await page.enableSemantics();
+    await page.clickText('Обновить', { wait: 500 });
+    if (!(await waitFor('Нет связи с сервером'))) {
+      throw new Error('сообщение о пропаже связи не появилось');
+    }
+    await sleep(800);
+    await page.shot('27-offline');
 
-  startServer();
-  if (!(await waitFor('Связь с сервером восстановлена'))) {
-    throw new Error('связь не восстановилась без перезагрузки');
+    console.log(
+      'полоса о пропаже связи в дереве доступности:',
+      (await page.locate('Данные не загружаются')).length > 0,
+    );
+
+    // После запуска сервера страницу никто не трогает. Ждём, когда список
+    // появится сам: сообщение о восстановлении видно три секунды, и снимок
+    // делается сразу, пока оно на экране.
+    startServer();
+    if (!(await waitFor('SD-000025', 20000))) {
+      throw new Error('список не загрузился без перезагрузки');
+    }
+    await page.shot('28-restored');
+    console.log(
+      'сообщение о восстановлении в дереве доступности:',
+      (await page.locate('Связь с сервером восстановлена')).length > 0,
+    );
   }
-  await sleep(600);
-  await page.shot('28-restored');
 
   // ── простой файловый сервер и внутренний адрес ───────────────────────
-  const py = spawn('python', ['-m', 'http.server', '8000'], {
-    cwd: WEB,
-    stdio: 'ignore',
-  });
-  await sleep(2000);
-  await page.open('http://localhost:8000/', 6000);
-  await page.shot('29-http-server-root');
-  await page.open('http://localhost:8000/tickets', 2500);
-  await page.shot('30-http-server-404');
-  py.kill();
+  if (run('http-server')) {
+    const py = spawn('python', ['-m', 'http.server', '8000'], {
+      cwd: WEB,
+      stdio: 'ignore',
+    });
+    await sleep(2000);
+    await at(1280);
+    await page.open('http://localhost:8000/', 6000);
+    await page.shot('29-http-server-root');
+    await page.open('http://localhost:8000/tickets', 2500);
+    await page.shot('30-http-server-404');
+    py.kill();
+  }
 
+  const offlineStart = marks.beforeOffline ?? marks.splash;
   console.log('\nошибки консоли при смене ширины и переходах:');
-  console.log(problems.slice(0, adaptiveProblems).join('\n') || 'нет');
+  console.log(problems.slice(0, marks.adaptive).join('\n') || 'нет');
   console.log('\nошибки консоли при загрузке с медленной сетью:');
-  console.log(problems.slice(adaptiveProblems, beforeOffline).join('\n') || 'нет');
+  console.log(problems.slice(marks.adaptive, marks.splash).join('\n') || 'нет');
   console.log('\nошибки консоли при выключенном сервере и после:');
-  console.log(problems.slice(beforeOffline).join('\n') || 'нет');
+  console.log(problems.slice(offlineStart).join('\n') || 'нет');
 };
