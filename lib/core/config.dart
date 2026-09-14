@@ -4,15 +4,17 @@ library;
 /// Базовый адрес учебного API.
 ///
 /// Константой его зашивать нельзя: на занятии сервер один, дома другой,
-/// при публикации третий. Значение задаётся при сборке и по умолчанию
-/// указывает на сервер, запущенный на той же машине:
+/// при публикации третий. Поэтому в коде нет даже значения по умолчанию —
+/// адрес задаётся только при сборке, файлом или флагом:
 ///
 ///     flutter run -d chrome --web-port=5555 \
-///       --dart-define=API_BASE_URL=http://192.168.1.10:8080/api
-const String apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://localhost:8080/api',
-);
+///       --dart-define-from-file=config/local.json
+///     flutter build web --release \
+///       --dart-define=API_BASE_URL=https://api.example.com/api
+///
+/// Пустая строка означает, что параметр забыли; main сообщает об этом
+/// при запуске.
+const String apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
 /// Время без действий, после которого сессия завершается. Задаётся при
 /// сборке так же, как адрес сервера, чтобы проверить выход по

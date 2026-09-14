@@ -222,15 +222,19 @@ node api/mock-server.js --port 8080 --ttl 60
 Сроки сессии задаются при сборке, чтобы не ждать три минуты:
 
 ```bash
-flutter run -d chrome --web-port=5555 --dart-define=INACTIVITY_SECONDS=45 --dart-define=SESSION_MAX_MINUTES=5
+flutter run -d chrome --web-port=5555 --dart-define-from-file=config/local.json --dart-define=INACTIVITY_SECONDS=45 --dart-define=SESSION_MAX_MINUTES=5
 ```
 
 Затем клиент:
 
 ```bash
 flutter pub get
-flutter run -d chrome --web-port=5555
+flutter run -d chrome --web-port=5555 --dart-define-from-file=config/local.json
 ```
+
+Адреса сервера в коде нет вовсе, даже значением по умолчанию: он приходит
+только параметром сборки. `config/local.json` задаёт учебный сервер на этой
+машине; без параметра приложение при запуске сообщает, чего не хватает.
 
 Порт задан явно: по умолчанию `flutter run` выбирает случайный, адрес
 источника меняется от запуска к запуску, и сервер начинает отклонять
@@ -269,7 +273,7 @@ flutter test
 Релизная сборка и её проверка локально:
 
 ```bash
-flutter build web --release
+flutter build web --release --dart-define-from-file=config/local.json
 node tool/serve-web.js --port 5555
 ```
 
@@ -281,7 +285,7 @@ node tool/serve-web.js --port 5555
 Сборка с WebAssembly (браузер без WasmGC загрузит вариант на JavaScript):
 
 ```bash
-flutter build web --release --wasm
+flutter build web --release --wasm --dart-define-from-file=config/local.json
 ```
 
 Публикация в подкаталоге и адрес API задаются флагами сборки:

@@ -34,6 +34,17 @@ import 'state/list_notifier.dart';
 import 'state/reference_data_notifier.dart';
 
 Future<void> main() async {
+  // Адрес API в коде не записан: без параметра сборки приложение
+  // обращалось бы к собственному сайту и получало index.html вместо
+  // данных. Лучше сразу сказать, чего не хватает.
+  if (apiBaseUrl.isEmpty) {
+    throw StateError(
+      'Не задан адрес API. Соберите приложение с параметром '
+      '--dart-define-from-file=config/local.json или '
+      '--dart-define=API_BASE_URL=<адрес>.',
+    );
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
 
   // Адрес без решётки: /tickets вместо /#/tickets.
