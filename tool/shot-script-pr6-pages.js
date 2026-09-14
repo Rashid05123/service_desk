@@ -24,25 +24,18 @@ module.exports = async function script(page, { sleep }) {
   await page.open(`${SITE}/tickets/5`, 9000);
   await page.shot('31-pages-deep-link');
 
-  // Та же ссылка после входа. Страница открыта по HTTPS, сервер — на этой
-  // машине по HTTP: смешанным содержимым браузер это не считает, но
-  // обращение сайта из интернета к localhost разрешает только с согласия
-  // пользователя. Обычный Chrome спрашивает его окном; в браузере без окна
-  // спросить некого, и то же согласие выдаётся через протокол отладки.
-  try {
-    await page.send('Browser.grantPermissions', {
-      origin: 'https://rashid05123.github.io',
-      permissions: ['localNetworkAccess'],
-    });
-    console.log('разрешение на доступ к локальной сети выдано');
-  } catch (e) {
-    console.log('разрешение выдать не удалось:', e.message);
-  }
-  const auth = await fetch('http://localhost:8080/api/auth/login', {
+  // Та же ссылка после входа. Учебный сервер встроен в сборку и работает
+  // в service worker страницы, поэтому вход выполняется запросом со
+  // страницы к её же адресу /service_desk/api.
+  const auth = await page.eval(`fetch('${SITE}/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: 'abramov', password: 'abramov123' }),
-  }).then((r) => r.json());
+  }).then((r) => r.json())`);
+  console.log(
+    'учебный сервер в браузере:',
+    await page.eval(`navigator.serviceWorker.getRegistration().then((r) => r && r.scope)`),
+  );
   const user = {
     ...auth.user,
     employeeId: auth.user.employee?.id ?? null,
@@ -68,14 +61,16 @@ module.exports = async function script(page, { sleep }) {
     await page.shot('33-actions-run');
   }
 
-  // Управление с клавиатуры: поле логина получает фокус само, три нажатия
-  // Tab проводят через пароль и кнопку показа пароля к кнопке «Войти».
+  // Управление с клавиатуры: поле логина получает фокус само, два нажатия
+  // Tab проводят через поле пароля к кнопке показа пароля — у значка
+  // фокус виден кругом подсветки.
   if (process.env.APP_URL) {
     await page.resize(1280, 800, false);
     await page.open(`${process.env.APP_URL}/login`, 3000);
     await page.eval('localStorage.clear()');
     await page.open(`${process.env.APP_URL}/login`, 6000);
-    for (let i = 0; i < 3; i++) await page.key('Tab', 'Tab', 9, 700);
+    await page.type('grigorev', 300);
+    for (let i = 0; i < 2; i++) await page.key('Tab', 'Tab', 9, 700);
     await page.shot('34-keyboard-focus');
   }
   await sleep(100);
