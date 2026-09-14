@@ -85,4 +85,13 @@ void main() {
     expect(validate('abcdef'), isNotNull);
     expect(validate('abramov@sd.local'), isNull);
   });
+
+  test('надёжность пароля: длина, цифра и специальный символ', () {
+    expect(v.strongPassword('Ab1!'), contains('восьми'));
+    expect(v.strongPassword('Abcdefgh!'), contains('цифра'));
+    expect(v.strongPassword('Abcdefg12'), contains('специальный'));
+    expect(v.strongPassword('Abcdefg1!'), isNull);
+    // Пустое значение пропускается: за него отвечает notEmpty.
+    expect(v.strongPassword(''), isNull);
+  });
 }

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 
-import 'core/router.dart';
+import 'widgets/session_guard.dart';
 
 /// Корневой виджет. MaterialApp.router нужен для работы go_router.
 ///
-/// Сообщение о смене формата данных в хранилище браузера отсюда убрано
-/// вместе с самим хранилищем: записи живут на сервере, и версия формата
-/// теперь его забота, а не клиента.
+/// Маршрутизатор передаётся снаружи: он зависит от сессии, а сессия
+/// восстанавливается в main до построения дерева виджетов.
 class ServiceDeskApp extends StatelessWidget {
-  const ServiceDeskApp({super.key});
+  const ServiceDeskApp({super.key, required this.router});
+
+  final GoRouter router;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,11 @@ class ServiceDeskApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Служба технической поддержки',
       debugShowCheckedModeBanner: false,
-      routerConfig: appRouter,
+      routerConfig: router,
+      // Сроки сессии следят за действиями на любом экране, поэтому
+      // обёртка стоит над навигатором, а не внутри отдельного экрана.
+      builder: (context, child) =>
+          SessionGuard(child: child ?? const SizedBox.shrink()),
       // Русская локаль для календаря в выборе даты.
       locale: const Locale('ru'),
       supportedLocales: const [Locale('ru'), Locale('en')],

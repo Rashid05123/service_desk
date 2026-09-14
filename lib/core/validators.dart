@@ -128,6 +128,28 @@ String? fullName(String? value) {
   return null;
 }
 
+/// Требования к паролю при регистрации. Списком, а не одним выражением:
+/// форма показывает каждое требование отдельной строкой и отмечает
+/// выполненные по мере ввода.
+final List<({String label, bool Function(String value) test})> passwordRules = [
+  (label: 'не короче восьми символов', test: (v) => v.length >= 8),
+  (label: 'хотя бы одна цифра', test: (v) => RegExp(r'\d').hasMatch(v)),
+  (
+    label: 'хотя бы один специальный символ: ! ? # % и другие',
+    test: (v) => RegExp(r'[^A-Za-zА-Яа-яЁё0-9\s]').hasMatch(v),
+  ),
+];
+
+/// Надёжность пароля: текст первого невыполненного требования.
+String? strongPassword(String? value) {
+  final text = value ?? '';
+  if (text.isEmpty) return null;
+  for (final rule in passwordRules) {
+    if (!rule.test(text)) return 'Пароль: ${rule.label}';
+  }
+  return null;
+}
+
 /// Последовательное применение проверок: возвращается первая ошибка.
 /// Так требования к полю читаются списком, а не вложенными условиями.
 Validator<T> all<T>(List<Validator<T>> validators) {

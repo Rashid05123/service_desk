@@ -31,6 +31,7 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
   LoadStatus _status = LoadStatus.idle;
   String? _error;
   String? _actionError;
+  bool _forbidden = false;
   final Set<int> _selected = {};
 
   bool _disposed = false;
@@ -46,6 +47,10 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
   LoadStatus get status => _status;
 
   String? get error => _error;
+
+  /// Сервер отказал в доступе с кодом 403. Экран показывает отказ,
+  /// а не «ошибку загрузки» с кнопкой повтора: повтор ничего не изменит.
+  bool get isForbidden => _forbidden;
 
   Set<int> get selected => Set.unmodifiable(_selected);
 
@@ -71,6 +76,7 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
 
     _status = LoadStatus.loading;
     _error = null;
+    _forbidden = false;
     _safeNotify();
 
     try {
@@ -84,7 +90,8 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
       return;
     } catch (e) {
       if (requestId != _requestId) return;
-      _error = '$failureMessage: $e';
+      _forbidden = e is ForbiddenException;
+      _error = e is ForbiddenException ? e.message : '$failureMessage: $e';
       _status = LoadStatus.error;
     }
     _safeNotify();
@@ -97,6 +104,20 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
     _query = next;
     _selected.clear();
     await load();
+  }
+
+  /// Возврат к исходному состоянию при смене пользователя: следующему
+  /// не должна мелькнуть страница, загруженная для предыдущего.
+  void reset() {
+    repository.cancelPendingFind();
+    _requestId++;
+    _result = PageResult.empty();
+    _status = LoadStatus.idle;
+    _error = null;
+    _actionError = null;
+    _forbidden = false;
+    _selected.clear();
+    _safeNotify();
   }
 
   void toggleSelection(int id) {
@@ -174,6 +195,12 @@ class ListNotifier<T, Q extends ListQuery<Q>> extends ChangeNotifier {
       // на всех иначе не получается.
       _actionError =
           'Нельзя удалить: ${e.subject}. Связанные записи: ${e.details}.';
+      _safeNotify();
+      return false;
+    } on ForbiddenException catch (e) {
+      // Отказ по правам — тоже не сбой: список остаётся на экране,
+      // сообщение сервера показывается всплывающей строкой.
+      _actionError = e.message;
       _safeNotify();
       return false;
     } catch (e) {

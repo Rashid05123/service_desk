@@ -78,11 +78,20 @@ class EmptyView extends StatelessWidget {
 
 /// Запрос завершился ошибкой. Условия отбора ни при чём, поэтому
 /// предлагается повторить запрос.
+///
+/// Отказ сервера по правам с кодом 403 показывается иначе: повтор его
+/// не исправит, и кнопки повтора нет.
 class ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
+  final bool forbidden;
 
-  const ErrorView({super.key, required this.message, required this.onRetry});
+  const ErrorView({
+    super.key,
+    required this.message,
+    required this.onRetry,
+    this.forbidden = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,13 +106,13 @@ class ErrorView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.error_outline,
+                forbidden ? Icons.gpp_bad_outlined : Icons.error_outline,
                 size: 56,
                 color: theme.colorScheme.error,
               ),
               const SizedBox(height: 16),
               Text(
-                'Ошибка загрузки',
+                forbidden ? 'Сервер отказал в доступе' : 'Ошибка загрузки',
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -115,11 +124,21 @@ class ErrorView extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Повторить'),
-              ),
+              if (forbidden)
+                Text(
+                  'Код ответа 403: у вашей роли нет права на эту операцию. '
+                  'Права проверяет сервер, и повтор запроса ответа не изменит.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Повторить'),
+                ),
             ],
           ),
         ),

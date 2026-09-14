@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../core/permissions.dart';
+import '../state/auth_notifier.dart';
+
 import '../state/detail_notifier.dart';
 import '../state/load_status.dart';
 import 'status_views.dart';
@@ -47,6 +50,13 @@ class DetailPage<T> extends StatelessWidget {
 
     final item = notifier.item;
 
+    // Кнопка изменения скрыта от роли, которой изменять нельзя. Адрес
+    // формы, набранный вручную, остановит маршрутизатор, запрос в обход
+    // интерфейса — сервер.
+    final section = sectionPermissions[listPath];
+    final canManage =
+        section != null && context.watch<AuthNotifier>().can(section.manage);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(titleOf(item)),
@@ -58,7 +68,7 @@ class DetailPage<T> extends StatelessWidget {
           ),
         ),
         actions: [
-          if (item != null)
+          if (item != null && canManage)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilledButton.tonalIcon(

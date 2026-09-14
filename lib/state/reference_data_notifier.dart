@@ -8,6 +8,7 @@ import '../models/employee.dart';
 import '../models/employee_query.dart';
 import '../models/requester.dart';
 import '../models/requester_query.dart';
+import '../models/page_result.dart';
 import '../repositories/app_repositories.dart';
 
 /// Кэш справочников: отделы, категории, сотрудники и заявители.
@@ -22,9 +23,25 @@ import '../repositories/app_repositories.dart';
 /// сотни записей. Для справочника, который в страницу не помещается,
 /// понадобился бы поиск по мере ввода, а не готовый список.
 class ReferenceDataNotifier extends ChangeNotifier {
-  ReferenceDataNotifier(this._repositories);
+  ReferenceDataNotifier(this._repositories, {bool Function(String)? canRead})
+    : _canRead = canRead ?? ((_) => true);
 
   final AppRepositories _repositories;
+
+  /// Можно ли текущему пользователю читать справочник: `departments`,
+  /// `employees`. Справочник, закрытый для роли, не запрашивается вовсе —
+  /// иначе заявитель на каждом экране получал бы с сервера 403.
+  final bool Function(String collection) _canRead;
+
+  /// Сброс кэша вместе со значениями. Вызывается при смене пользователя:
+  /// следующему не должны достаться справочники предыдущего.
+  void reset() {
+    _departments = const [];
+    _categories = const [];
+    _employees = const [];
+    _requesters = const [];
+    invalidate();
+  }
 
   static const int _pageSize = 100;
 
@@ -76,18 +93,26 @@ class ReferenceDataNotifier extends ChangeNotifier {
       // Запросы отправляются все сразу и только потом ожидаются: они
       // независимы, и ждать их по очереди означало бы четырёхкратное
       // ожидание вместо одного.
-      final departments = _repositories.departments.find(
-        const DepartmentQuery(size: _pageSize, includeDeleted: true),
-      );
-      final categories = _repositories.categories.find(
-        const CategoryQuery(size: _pageSize, includeDeleted: true),
-      );
-      final employees = _repositories.employees.find(
-        const EmployeeQuery(size: _pageSize, includeDeleted: true),
-      );
-      final requesters = _repositories.requesters.find(
-        const RequesterQuery(size: _pageSize, includeDeleted: true),
-      );
+      final departments = _canRead('departments')
+          ? _repositories.departments.find(
+              const DepartmentQuery(size: _pageSize, includeDeleted: true),
+            )
+          : Future.value(PageResult<Department>.empty());
+      final categories = _canRead('categories')
+          ? _repositories.categories.find(
+              const CategoryQuery(size: _pageSize, includeDeleted: true),
+            )
+          : Future.value(PageResult<TicketCategory>.empty());
+      final employees = _canRead('employees')
+          ? _repositories.employees.find(
+              const EmployeeQuery(size: _pageSize, includeDeleted: true),
+            )
+          : Future.value(PageResult<Employee>.empty());
+      final requesters = _canRead('requesters')
+          ? _repositories.requesters.find(
+              const RequesterQuery(size: _pageSize, includeDeleted: true),
+            )
+          : Future.value(PageResult<Requester>.empty());
 
       // Ждать по очереди нельзя: если откажет первый запрос, метод
       // завершится исключением, а отказы остальных трёх останутся

@@ -8,7 +8,7 @@ import 'fault_switch.dart';
 /// Настроенный клиент HTTP: базовый адрес, таймауты и цепочка
 /// интерсепторов. Всё, что относится к сети, собрано здесь, поэтому
 /// репозиторию остаются только адреса и разбор тела.
-Dio buildDio({FaultSwitch? faults, String? Function()? tokenProvider}) {
+Dio buildDio({FaultSwitch? faults, AuthSession Function()? session}) {
   final dio = Dio(
     BaseOptions(
       baseUrl: apiBaseUrl,
@@ -23,30 +23,112 @@ Dio buildDio({FaultSwitch? faults, String? Function()? tokenProvider}) {
 
   // Порядок важен. Разбор ошибок стоит раньше журнала: иначе ответ
   // с кодом 4xx попал бы в журнал дважды — сначала как ответ, потом
-  // как отказ, отправленный по ветке ошибок. Повтор стоит последним:
-  // он должен видеть уже разобранный отказ.
-  dio.interceptors.add(_AuthInterceptor(tokenProvider));
+  // как отказ, отправленный по ветке ошибок. Обновление токена стоит
+  // после журнала, чтобы ответ 401 в журнал попал. Повтор стоит
+  // последним: он должен видеть уже разобранный отказ.
+  dio.interceptors.add(_AuthInterceptor(session));
   if (faults != null) dio.interceptors.add(_FaultInterceptor(faults));
   dio.interceptors.add(_ErrorInterceptor());
   dio.interceptors.add(_LogInterceptor());
+  if (session != null) dio.interceptors.add(_RefreshInterceptor(dio, session));
   dio.interceptors.add(_RetryInterceptor(dio));
 
   return dio;
 }
 
-/// Заголовок авторизации. Вход в систему — тема ПР5, поэтому поставщик
-/// токена сейчас не задан; место для него подготовлено, чтобы добавление
-/// аутентификации не потребовало трогать репозитории.
-class _AuthInterceptor extends Interceptor {
-  _AuthInterceptor(this._tokenProvider);
+/// Сессия с точки зрения сетевого слоя: текущий токен, его обновление
+/// и завершение сессии. Реализует её `AuthNotifier`; сетевой слой знает
+/// только этот договор и ничего не знает о виджетах и хранилище.
+abstract interface class AuthSession {
+  String? get accessToken;
 
-  final String? Function()? _tokenProvider;
+  /// true — токены обновлены, false — сервер в обновлении отказал.
+  Future<bool> refreshTokens();
+
+  /// Завершение сессии после отказа в обновлении.
+  Future<void> expire();
+}
+
+/// Заголовок авторизации на каждый запрос. Сессия передаётся функцией:
+/// клиент HTTP создаётся раньше сессии, а сессия сама пользуется им
+/// для входа и обновления токена.
+class _AuthInterceptor extends Interceptor {
+  _AuthInterceptor(this._session);
+
+  final AuthSession Function()? _session;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = _tokenProvider?.call();
+    final token = _session?.call().accessToken;
     if (token != null) options.headers['Authorization'] = 'Bearer $token';
     handler.next(options);
+  }
+}
+
+/// Обновление токена при ответе 401 и повтор исходного запроса —
+/// прозрачно для экрана, который этот запрос отправил.
+///
+/// Три условия защищают от бесконечного цикла:
+/// * адреса /auth/ не обновляются: неудачный вход с кодом 401 иначе
+///   вызвал бы обновление, оно тоже вернуло бы 401, и так без конца;
+/// * запрос, уже повторённый после обновления, второй раз не
+///   обновляется: если сервер отвечает 401 и на свежий токен, дело
+///   не в сроке токена;
+/// * отказ в обновлении завершает сессию, а не запускает новую попытку.
+class _RefreshInterceptor extends Interceptor {
+  _RefreshInterceptor(this._dio, this._session);
+
+  final Dio _dio;
+  final AuthSession Function() _session;
+
+  static const _afterRefresh = '__afterRefresh';
+
+  @override
+  Future<void> onError(
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final options = error.requestOptions;
+    final session = _session();
+
+    if (error.response?.statusCode != 401 ||
+        options.path.contains('/auth/') ||
+        options.extra[_afterRefresh] == true ||
+        session.accessToken == null) {
+      return handler.next(error);
+    }
+
+    // Пока этот запрос шёл, токен мог обновить соседний запрос. Тогда
+    // обновлять второй раз незачем — достаточно повторить с новым.
+    final sentWith = options.headers['Authorization'];
+    final alreadyRefreshed = sentWith != 'Bearer ${session.accessToken}';
+
+    if (!alreadyRefreshed) {
+      final bool refreshed;
+      try {
+        refreshed = await session.refreshTokens();
+      } on ApiException {
+        // Сеть пропала посреди обновления. Сессия не завершается:
+        // экран покажет ошибку, а повтор станет возможен, когда сеть
+        // вернётся.
+        return handler.next(error);
+      }
+      if (!refreshed) {
+        if (kDebugMode) {
+          debugPrint('[API] обновление токена отклонено, сессия завершена');
+        }
+        await session.expire();
+        return handler.next(error);
+      }
+    }
+
+    options.extra[_afterRefresh] = true;
+    if (kDebugMode) debugPrint('[API] повтор после обновления ${options.uri}');
+    try {
+      handler.resolve(await _dio.fetch<dynamic>(options));
+    } on DioException catch (e) {
+      handler.next(e);
+    }
   }
 }
 

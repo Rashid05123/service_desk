@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../core/breakpoints.dart';
 import '../core/fault_switch.dart';
 import '../core/formatting.dart';
+import '../core/permissions.dart';
 import '../models/list_query.dart';
+import '../state/auth_notifier.dart';
 import '../state/list_notifier.dart';
 import '../state/reference_data_notifier.dart';
 import '../state/load_status.dart';
@@ -97,6 +99,12 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
 
   /// Уже применённая строка запроса. Сравнение с ней не даёт зациклиться.
   String? _appliedQueryString;
+
+  /// Что текущей роли разрешено в этом разделе. Пересчитывается при
+  /// каждой сборке: роль меняется при входе и обновлении токена.
+  bool _canManage = false;
+  bool _canHardDelete = false;
+  bool _canRestore = false;
 
   ListNotifier<T, Q> get _notifier => context.read<ListNotifier<T, Q>>();
 
@@ -221,18 +229,29 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
     final query = notifier.query;
     final compact = screenSizeOf(context) == ScreenSize.compact;
 
+    // Кнопки, которыми роль всё равно не сможет воспользоваться, скрыты.
+    // Это уборка интерфейса, а не защита: вернуть кнопку правкой данных
+    // в DevTools можно, но сервер отклонит операцию с кодом 403.
+    final auth = context.watch<AuthNotifier>();
+    final section = sectionPermissions[widget.path];
+    _canManage = section != null && auth.can(section.manage);
+    _canHardDelete = auth.can(Permission.hardDelete);
+    _canRestore = auth.can(Permission.restore);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
           // Кнопка создания в панели, а не плавающая: плавающая
           // перекрывает управление постраничным выводом.
-          FilledButton.icon(
-            onPressed: () => context.go('${widget.path}/new'),
-            icon: const Icon(Icons.add),
-            label: Text(compact ? 'Создать' : widget.createLabel),
-          ),
-          const SizedBox(width: 8),
+          if (_canManage) ...[
+            FilledButton.icon(
+              onPressed: () => context.go('${widget.path}/new'),
+              icon: const Icon(Icons.add),
+              label: Text(compact ? 'Создать' : widget.createLabel),
+            ),
+            const SizedBox(width: 8),
+          ],
           Tooltip(
             message: 'Обновить',
             child: IconButton(
@@ -250,7 +269,8 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
         children: [
           _toolbar(context, query),
           if (_filtersExpanded ?? false) _filterPanel(context, query),
-          if (notifier.hasSelection) _selectionBar(context, notifier),
+          if (_canManage && notifier.hasSelection)
+            _selectionBar(context, notifier),
           Expanded(child: _content(context, notifier, compact)),
           if (notifier.status != LoadStatus.error)
             PaginationBar(
@@ -405,6 +425,7 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
         return ErrorView(
           message: notifier.error ?? 'Неизвестная ошибка',
           onRetry: notifier.load,
+          forbidden: notifier.isForbidden,
         );
       case LoadStatus.success:
         if (notifier.result.items.isEmpty) {
@@ -429,8 +450,8 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
       items: notifier.result.items,
       idOf: widget.idOf,
       selected: notifier.selected,
-      onToggleSelect: notifier.toggleSelection,
-      onToggleSelectAll: notifier.toggleSelectAllOnPage,
+      onToggleSelect: _canManage ? notifier.toggleSelection : null,
+      onToggleSelectAll: _canManage ? notifier.toggleSelectAllOnPage : null,
       isDimmed: widget.isDeleted,
       sortField: query.sortField,
       sortAscending: query.sortAscending,
@@ -451,7 +472,7 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
       items: notifier.result.items,
       idOf: widget.idOf,
       selected: notifier.selected,
-      onToggleSelect: notifier.toggleSelection,
+      onToggleSelect: _canManage ? notifier.toggleSelection : null,
       isDimmed: widget.isDeleted,
       title: widget.cardTitle,
       subtitle: widget.cardSubtitle,
@@ -472,17 +493,19 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
           onPressed: () => context.go(_withCurrentQuery('${widget.path}/$id')),
         ),
       ),
-      Tooltip(
-        message: 'Изменить',
-        child: IconButton(
-          icon: const Icon(Icons.edit_outlined),
-          // Удалённую запись сначала восстанавливают, потом правят.
-          onPressed: deleted
-              ? null
-              : () => context.go(_withCurrentQuery('${widget.path}/$id/edit')),
+      if (_canManage)
+        Tooltip(
+          message: 'Изменить',
+          child: IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            // Удалённую запись сначала восстанавливают, потом правят.
+            onPressed: deleted
+                ? null
+                : () =>
+                      context.go(_withCurrentQuery('${widget.path}/$id/edit')),
+          ),
         ),
-      ),
-      if (deleted)
+      if (deleted && _canRestore)
         Tooltip(
           message: 'Восстановить',
           child: IconButton(
@@ -490,7 +513,7 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
             onPressed: () => _notifier.restore(id),
           ),
         )
-      else
+      else if (!deleted && _canManage)
         Tooltip(
           message: 'Удалить (логически)',
           child: IconButton(
@@ -498,14 +521,15 @@ class _EntityListPageState<T, Q extends ListQuery<Q>>
             onPressed: () => _confirmSoftDelete(item),
           ),
         ),
-      Tooltip(
-        message: 'Удалить безвозвратно',
-        child: IconButton(
-          icon: const Icon(Icons.delete_forever),
-          color: Theme.of(context).colorScheme.error,
-          onPressed: () => _confirmHardDelete(item),
+      if (_canHardDelete)
+        Tooltip(
+          message: 'Удалить безвозвратно',
+          child: IconButton(
+            icon: const Icon(Icons.delete_forever),
+            color: Theme.of(context).colorScheme.error,
+            onPressed: () => _confirmHardDelete(item),
+          ),
         ),
-      ),
     ];
   }
 }
