@@ -109,10 +109,14 @@ void main() {
       ),
     );
 
-    // Ровно два запроса: исходный и одна попытка обновления.
+    // Исходный запрос, одна попытка обновления и отзыв токена при выходе.
+    // Повторов нет: очередь событий дочищается, и новых запросов
+    // не появляется.
+    await pumpEventQueue();
     expect(server.requests.map((r) => r.key), [
       'GET /tickets',
       'POST /auth/refresh',
+      'POST /auth/logout',
     ]);
     expect(auth.isAuthenticated, isFalse);
     expect(auth.endReason, SessionEndReason.expired);
