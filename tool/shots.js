@@ -21,7 +21,9 @@ const path = require('node:path');
 const os = require('node:os');
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const APP = 'http://localhost:5555';
+// Адрес приложения можно переопределить, чтобы не мешать запущенному
+// на 5555 клиенту.
+const APP = process.env.APP_URL || 'http://localhost:5555';
 const WIDTH = 1440;
 const HEIGHT = 900;
 

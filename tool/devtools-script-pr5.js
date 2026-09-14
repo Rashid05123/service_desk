@@ -23,10 +23,15 @@ const LOG =
   process.env.SERVER_LOG || path.join(os.tmpdir(), 'sd-pr5-devtools.log');
 const EVIDENCE = process.env.EVIDENCE || os.tmpdir();
 
+// Порт сервера сценария. Останавливается только сервер на этом порту:
+// учебный сервер, запущенный рядом вручную, сценарий не трогает.
+const API_PORT = process.env.API_PORT || '8080';
+const APP_ORIGIN = new URL(process.env.APP_URL || 'http://localhost:5555').origin;
+
 function stopServer() {
   execSync(
     'powershell -Command "Get-CimInstance Win32_Process -Filter \\"Name=\'node.exe\'\\" ' +
-      "| Where-Object { $_.CommandLine -like '*mock-server*' } " +
+      `| Where-Object { $_.CommandLine -like '*mock-server*--port ${API_PORT}*' } ` +
       '| ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
     { stdio: 'ignore' },
   );
@@ -34,7 +39,7 @@ function stopServer() {
 
 function startServer() {
   const out = fs.openSync(LOG, 'a');
-  spawn(process.execPath, [SERVER, '--port', '8080', '--ttl', '60'], {
+  spawn(process.execPath, [SERVER, '--port', API_PORT, '--origin', APP_ORIGIN, '--ttl', '60'], {
     detached: true,
     stdio: ['ignore', out, out],
   }).unref();
@@ -104,9 +109,7 @@ const TAB_NETWORK = [446, 14]; // вкладка Network
 /** Область снимка без полосы с трансляцией страницы. */
 const PANEL = { x: 150, y: 0, width: 1432, height: 905 };
 
-// Точки экрана входа и полосы навигации приложения при окне 1440×900.
-const LOGIN_PASSWORD = [720, 451];
-const LOGIN_SUBMIT = [720, 516];
+// Точки полосы навигации приложения при окне 1440×900.
 const railItem = (index) => [44, 96 + index * 64];
 
 module.exports = async function script({ app, devtools, sleep, APP }) {
@@ -126,15 +129,38 @@ module.exports = async function script({ app, devtools, sleep, APP }) {
   await devtools.click(400, 67, 400); // поле отбора
   await insertText(devtools, 'api', sleep, 600);
 
+  /**
+   * Сессия по ответу сервера на вход. Опыты этого сценария — про
+   * хранилище, токены и ответы сервера, а не про форму входа, а набор
+   * в поля headless-браузером после множества действий ненадёжен.
+   */
   const signIn = async (username, password) => {
+    const auth = await fetch(`http://localhost:${API_PORT}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }).then((r) => r.json());
+    const user = {
+      ...auth.user,
+      employeeId: auth.user.employee?.id ?? null,
+      requesterId: auth.user.requester?.id ?? null,
+    };
+    const now = new Date().toISOString();
+    // shared_preferences на web хранит значение в JSON с префиксом flutter.
+    const put = (key, value) =>
+      `localStorage.setItem('flutter.${key}', ${JSON.stringify(JSON.stringify(value))});`;
     await app.front();
     await app.open(APP + '/login', 3000);
-    await app.send('Runtime.evaluate', { expression: 'localStorage.clear()' });
-    await app.open(APP + '/login', 6000);
-    await insertText(app, username, sleep); // поле логина с автофокусом
-    await app.click(...LOGIN_PASSWORD, 400);
-    await insertText(app, password, sleep);
-    await app.click(...LOGIN_SUBMIT, 4000);
+    await app.send('Runtime.evaluate', {
+      expression:
+        'localStorage.clear();' +
+        put('auth_access_token', auth.accessToken) +
+        put('auth_refresh_token', auth.refreshToken) +
+        put('auth_user', JSON.stringify(user)) +
+        put('auth_session_started_at', now) +
+        put('auth_last_activity_at', now),
+    });
+    await app.open(APP + '/', 6000);
   };
 
   // Переменная ONLY=noloop оставляет только последний опыт.

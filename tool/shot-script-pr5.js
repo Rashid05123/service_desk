@@ -23,10 +23,15 @@ const SERVER = path.join(__dirname, '..', 'api', 'mock-server.js');
 const LOG =
   process.env.SERVER_LOG || path.join(os.tmpdir(), 'sd-pr5-server.log');
 
+// Порт сервера сценария. Останавливается только сервер на этом порту:
+// учебный сервер, запущенный рядом вручную, сценарий не трогает.
+const API_PORT = process.env.API_PORT || '8080';
+const APP_ORIGIN = new URL(process.env.APP_URL || 'http://localhost:5555').origin;
+
 function stopServer() {
   execSync(
     'powershell -Command "Get-CimInstance Win32_Process -Filter \\"Name=\'node.exe\'\\" ' +
-      "| Where-Object { $_.CommandLine -like '*mock-server*' } " +
+      `| Where-Object { $_.CommandLine -like '*mock-server*--port ${API_PORT}*' } ` +
       '| ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
     { stdio: 'ignore' },
   );
@@ -34,7 +39,7 @@ function stopServer() {
 
 function startServer(extra = []) {
   const out = fs.openSync(LOG, 'a');
-  spawn(process.execPath, [SERVER, '--port', '8080', ...extra], {
+  spawn(process.execPath, [SERVER, '--port', API_PORT, '--origin', APP_ORIGIN, ...extra], {
     detached: true,
     stdio: ['ignore', out, out],
   }).unref();
@@ -64,16 +69,34 @@ module.exports = async function script(page, { sleep, APP }) {
   };
 
   /**
-   * Вход под учётной записью учебного стенда: щелчок по её метке под
-   * формой заполняет оба поля, затем «Войти». Набор текста в поля
-   * headless-браузером ненадёжен — после перезагрузок страницы фокус
-   * поля ввода не всегда переходит по щелчку.
+   * Вход набором логина и пароля. Координаты полей берутся из дерева
+   * доступности, затем страница загружается заново, и поля заполняются
+   * без него: поле логина с автофокусом после включения дерева ввод
+   * теряет. Щелчок по полю пароля в headless-браузере переводит фокус
+   * не всегда, и пароль дописывается к логину, поэтому перед вводом
+   * пароля проверяется, что активно именно поле пароля; при неудаче
+   * попытка повторяется.
    */
-  const signIn = async (account, wait = 3500) => {
-    await page.enableSemantics();
-    await page.clickText(account, { wait: 600 });
-    await page.clickText('Войти', { exact: true, wait });
-    await page.enableSemantics();
+  const signIn = async (username, password, wait = 3500, expectOk = true) => {
+    const url = await page.eval('location.href');
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await page.open(url, 4000);
+      await page.enableSemantics();
+      const [pass] = await page.locate('Пароль');
+      await page.open(url, 5000);
+      await page.type(username, 300);
+      await page.click(pass.x, pass.y, 500);
+      const onPassword = await page.eval(
+        `document.activeElement?.type === 'password'`,
+      );
+      if (!onPassword) continue;
+      await page.type(password, 300);
+      await page.enableSemantics();
+      await page.clickText('Войти', { exact: true, wait });
+      await page.enableSemantics();
+      if (!expectOk || (await page.locate('Выйти')).length > 0) return;
+    }
+    throw new Error(`не удалось войти под ${username}`);
   };
 
   const nav = async (label, wait = 3500) => {
@@ -81,16 +104,69 @@ module.exports = async function script(page, { sleep, APP }) {
     await page.enableSemantics();
   };
 
+  /** Сессия по ответу сервера на вход — без экрана входа. */
+  const sessionFromApi = async (username, password) => {
+    const auth = await fetch(`http://localhost:${API_PORT}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }).then((r) => r.json());
+    const user = {
+      ...auth.user,
+      employeeId: auth.user.employee?.id ?? null,
+      requesterId: auth.user.requester?.id ?? null,
+    };
+    const now = new Date().toISOString();
+    // shared_preferences на web хранит значение в JSON с префиксом flutter.
+    const put = (key, value) =>
+      `localStorage.setItem('flutter.${key}', ${JSON.stringify(JSON.stringify(value))});`;
+    await page.open(APP + '/login', 3000);
+    await page.eval(
+      put('auth_access_token', auth.accessToken) +
+        put('auth_refresh_token', auth.refreshToken) +
+        put('auth_user', JSON.stringify(user)) +
+        put('auth_session_started_at', now) +
+        put('auth_last_activity_at', now),
+    );
+  };
+
+  await sessionFromApi('grigorev', 'grigorev123');
+  // ── форма обращения ─────────────────────────────────────────────────
+  // Снимается первой, в чистой вкладке: после множества переходов
+  // headless-браузер перестаёт переводить фокус щелчком в многострочное
+  // поле. Экран формы от способа входа не зависит, поэтому сессия
+  // кладётся в хранилище по ответу /auth/login напрямую. Поля
+  // заполняются щелчками по точкам без дерева доступности; перед вводом
+  // описания проверяется, что активно многострочное поле.
+  const SUBJECT = 'Не сканирует МФУ в кабинете 214';
+  const DESCRIPTION = 'При сканировании на почту МФУ показывает ошибку отправки.';
+  for (let attempt = 0; ; attempt++) {
+    if (attempt === 6) throw new Error('форма обращения не заполнилась');
+    await page.open(APP + '/my/new', 6000);
+    await page.type(SUBJECT, 300); // тема, автофокус
+    await page.click(764, 284, 800); // описание
+    // Фокус должен перейти в многострочное поле описания.
+    const focused = await page.eval(
+      `document.activeElement?.tagName === 'TEXTAREA'`,
+    );
+    if (!focused) continue;
+    await page.type(DESCRIPTION, 400);
+    await page.enableSemantics();
+    break;
+  }
+  await page.clickText('Категория', { within: (h) => h.x > 300, wait: 1200 });
+  await page.clickText('Печать и расходные материалы', { wait: 1200 });
+  await page.shot('08-my-ticket-form');
+
+  await page.clickText('Отправить', { exact: true, wait: 3500 });
+  await page.enableSemantics();
+  await page.shot('09-my-ticket-created');
+
   // ── вход и ошибка входа ─────────────────────────────────────────────
   await fresh('/login');
   await page.shot('01-login');
 
-  // Неверный пароль набирается в поля: логин — в поле с автофокусом до
-  // включения дерева доступности, пароль — после.
-  await page.type('grigorev', 300);
-  await page.enableSemantics();
-  await page.fill('Пароль', 'neverno-123');
-  await page.clickText('Войти', { exact: true, wait: 1800 });
+  await signIn('grigorev', 'neverno-123', 1800, false);
   await page.shot('02-login-error');
 
   // ── регистрация и проверка пароля по мере ввода ─────────────────────
@@ -112,28 +188,12 @@ module.exports = async function script(page, { sleep, APP }) {
 
   // ── заявитель ───────────────────────────────────────────────────────
   await fresh('/login');
-  await signIn('grigorev · заявитель');
+  await signIn('grigorev', 'grigorev123');
   await page.shot('06-home-requester');
 
   await nav('Мои заявки');
   await page.shot('07-my-tickets');
 
-  // Форма обращения заполняется щелчками по точкам, без дерева
-  // доступности: многострочное поле через него фокус не получает, и текст
-  // дописывался бы в поле темы. Страница открывается заново, дерево
-  // доступности после перезагрузки выключено, сессия восстанавливается
-  // из хранилища.
-  await page.open(APP + '/my/new', 6000);
-  await page.type('Не сканирует МФУ в кабинете 214', 300); // тема, автофокус
-  await page.click(764, 284, 400); // описание
-  await page.type('При сканировании на почту МФУ показывает ошибку отправки.');
-  await page.click(545, 416, 1200); // категория
-  await page.click(549, 464, 1200); // «Печать и расходные материалы»
-  await page.shot('08-my-ticket-form');
-
-  await page.click(1125, 500, 3500); // «Отправить»
-  await page.enableSemantics();
-  await page.shot('09-my-ticket-created');
 
   // Адрес чужого экрана, набранный вручную.
   await page.open(APP + '/admin/users', 5000);
@@ -141,8 +201,12 @@ module.exports = async function script(page, { sleep, APP }) {
   await page.shot('10-forbidden');
 
   // ── специалист поддержки ────────────────────────────────────────────
-  await fresh('/login');
-  await signIn('abramov · специалист');
+  // Дальше сессия кладётся через API: после множества действий
+  // headless-вкладка перестаёт переводить фокус щелчком между полями,
+  // а экраны ролей от способа входа не зависят.
+  await sessionFromApi('abramov', 'abramov123');
+  await page.open(APP + '/', 6000);
+  await page.enableSemantics();
   await page.shot('11-home-agent');
 
   await nav('Очередь');
@@ -152,8 +216,9 @@ module.exports = async function script(page, { sleep, APP }) {
   await page.shot('13-tickets-agent');
 
   // ── администратор ───────────────────────────────────────────────────
-  await fresh('/login');
-  await signIn('admin · администратор');
+  await sessionFromApi('admin', 'admin123');
+  await page.open(APP + '/', 6000);
+  await page.enableSemantics();
   await page.shot('14-home-admin');
 
   await nav('Заявки');
@@ -168,12 +233,15 @@ module.exports = async function script(page, { sleep, APP }) {
   // ── возврат на адрес, с которого отправили на вход ─────────────────
   await fresh('/tickets/5?search=');
   await page.shot('18-login-from');
-  await signIn('abramov · специалист', 5000);
+  // Вход выполнен, пользователь снова на экране входа с тем же адресом
+  // возврата: маршрутизатор отправляет его по адресу из from.
+  await sessionFromApi('abramov', 'abramov123');
+  await page.open(APP + '/login?from=' + encodeURIComponent('/tickets/5?search='), 6000);
   await page.shot('19-returned-to-card');
 
   // ── выход по неактивности ───────────────────────────────────────────
-  await fresh('/login');
-  await signIn('grigorev · заявитель');
+  await sessionFromApi('grigorev', 'grigorev123');
+  await page.open(APP + '/', 6000);
   // Три минуты без единого действия: предупреждение за 30 секунд.
   await sleep(152000);
   await page.shot('20-session-warning');

@@ -18,7 +18,9 @@ const path = require('node:path');
 const args = process.argv.slice(2);
 const portIndex = args.indexOf('--port');
 const PORT = Number(portIndex !== -1 ? args[portIndex + 1] : 5555);
-const ROOT = path.join(__dirname, '..', 'build', 'web');
+const ROOT = process.env.WEB_ROOT
+  ? path.resolve(process.env.WEB_ROOT)
+  : path.join(__dirname, '..', 'build', 'web');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',

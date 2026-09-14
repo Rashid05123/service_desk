@@ -20,7 +20,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const APP = 'http://localhost:5555';
+const APP = process.env.APP_URL || 'http://localhost:5555';
 const PORT = 9222;
 const WIDTH = 1600;
 const HEIGHT = 1000;
