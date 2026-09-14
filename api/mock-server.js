@@ -49,7 +49,14 @@ const PORT = Number(arg('port', 8080));
 // Список разрешённых источников. localhost и 127.0.0.1 — с точки зрения
 // браузера разные источники, поэтому в списке должны быть оба: клиент,
 // открытый по одному адресу, иначе не достучится по другому.
-const ORIGINS = arg('origin', 'http://localhost:5555,http://127.0.0.1:5555')
+//
+// Третий источник по умолчанию — опубликованная на GitHub Pages сборка
+// (ПР6): страница оттуда обращается к серверу, запущенному на машине
+// проверяющего. Путь /service_desk/ в источник не входит.
+const ORIGINS = arg(
+  'origin',
+  'http://localhost:5555,http://127.0.0.1:5555,https://rashid05123.github.io',
+)
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
@@ -790,6 +797,10 @@ function cors(res, origin) {
   );
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
+  // Страница из интернета (GitHub Pages) обращается к localhost. Chrome
+  // спрашивает у такого сервера разрешение на доступ из публичной сети
+  // предварительным запросом; без этого заголовка запрос блокируется.
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 
 function send(res, status, payload) {

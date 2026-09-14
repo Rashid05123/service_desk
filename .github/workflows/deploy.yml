@@ -1,0 +1,85 @@
+# Сборка и публикация на GitHub Pages при каждом изменении ветки main.
+#
+# Публикация идёт только после того, как прошли форматирование,
+# анализатор и тесты: сломанная сборка не должна заменить работающую.
+name: Сборка и публикация
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Две публикации подряд не должны перетирать друг друга: более новая
+# отменяет ещё не завершённую старую.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+
+      - name: Зависимости
+        run: flutter pub get
+
+      - name: Форматирование
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Анализатор
+        run: flutter analyze
+
+      - name: Тесты
+        run: flutter test
+
+      # Адрес API берётся из переменной репозитория API_BASE_URL
+      # (Settings → Secrets and variables → Actions → Variables). Если она
+      # не задана, сборка обращается к учебному серверу на машине того,
+      # кто открыл страницу.
+      #
+      # Базовый путь — имя репозитория: Pages публикует проект по адресу
+      # https://<пользователь>.github.io/<репозиторий>/.
+      - name: Сборка
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL || 'http://localhost:8080/api' }}
+          BASE_HREF: /${{ github.event.repository.name }}/
+        run: |
+          flutter build web --release --wasm \
+            --base-href "$BASE_HREF" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+          node tool/trim-web-build.js build/web
+
+      # Pages не перенаправляет неизвестные пути на index.html, но при
+      # отсутствии файла отдаёт 404.html. Копия index.html под этим именем
+      # загружает приложение, и маршрутизатор открывает нужный экран.
+      - name: Прямые ссылки на внутренние экраны
+        run: |
+          cp build/web/index.html build/web/404.html
+          touch build/web/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
